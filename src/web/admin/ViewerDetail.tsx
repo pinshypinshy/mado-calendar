@@ -34,7 +34,7 @@ export function ViewerDetail({ api, viewerId, onBack }: { api: AdminApi; viewerI
   const run = async (fn: () => Promise<Partial<typeof data> | void>) => {
     try {
       const patch = await fn();
-      if (patch) setData({ ...data, ...patch });
+      if (patch) setData((prev) => (prev ? { ...prev, ...patch } : prev));
       setError(null);
       setPreviewVersion((n) => n + 1);
     } catch (e) {
@@ -111,7 +111,7 @@ export function ViewerDetail({ api, viewerId, onBack }: { api: AdminApi; viewerI
         <p className="muted small">閲覧者が自分の画面で切り替えた場合は、そちらが優先されます。</p>
       </div>
 
-      <PeriodEditor value={viewer.period} onSave={(period) => updateViewer({ period })} />
+      <PeriodEditor key={JSON.stringify(viewer.period)} value={viewer.period} onSave={(period) => updateViewer({ period })} />
 
       <CopySettings
         viewers={data.viewers.filter((v) => v.id !== viewer.id)}

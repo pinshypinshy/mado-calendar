@@ -97,8 +97,12 @@ function OverrideEditor({
 }) {
   const [scope, setScope] = useState<Scope>('series');
   const recurring = event.recurringEventId !== null;
-  const defaultLabel = event.title.startsWith('#') ? '非表示（# の予定）' : 'ラベルに従う';
-  const valueOf = (s: AdminEventViewerState) => (recurring && scope === 'instance' ? s.instanceLevel : s.seriesLevel);
+  const baseDefault = event.title.startsWith('#') ? '非表示（# の予定）' : 'ラベルに従う';
+  const instanceScope = recurring && scope === 'instance';
+  const valueOf = (s: AdminEventViewerState) => (instanceScope ? s.instanceLevel : s.seriesLevel);
+  // 「この回のみ」が未設定の回には、シリーズ全体の設定（それも未設定なら初期値）が使われる
+  const defaultLabel = (s: AdminEventViewerState) =>
+    instanceScope && s.seriesLevel !== null ? `シリーズの設定：${LEVEL_LABELS[s.seriesLevel]}` : `初期値：${baseDefault}`;
 
   return (
     <div className="override-editor">
@@ -119,7 +123,7 @@ function OverrideEditor({
             value={valueOf(s) ?? ''}
             onChange={(e) => onChange(s.viewerId, scope, e.target.value === '' ? null : (e.target.value as OverrideLevel))}
           >
-            <option value="">初期値（{defaultLabel}）</option>
+            <option value="">{defaultLabel(s)}</option>
             {OVERRIDE_LEVELS.map((lv) => (
               <option key={lv} value={lv}>
                 {LEVEL_LABELS[lv]}

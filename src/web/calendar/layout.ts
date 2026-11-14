@@ -49,6 +49,13 @@ export function canShift(view: ViewMode, anchor: DateStr, dir: -1 | 1, bounds: D
   return true;
 }
 
+/** 日付を、閲覧できる範囲 [min, max) の中に丸める */
+export function clampDate(date: DateStr, bounds: DateBounds): DateStr {
+  if (bounds.min !== null && date < bounds.min) return bounds.min;
+  if (bounds.max !== null && date >= bounds.max) return addDays(bounds.max, -1);
+  return date;
+}
+
 export function periodTitle(view: ViewMode, anchor: DateStr): string {
   const [y, m] = splitDate(anchor);
   if (view === 'month') return `${y}年${m}月`;

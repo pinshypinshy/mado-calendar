@@ -9,6 +9,7 @@ import { errorMessage } from '../ui/errors';
 import { Modal } from '../ui/Modal';
 import {
   canShift,
+  clampDate,
   eventLabel,
   eventsOnDate,
   fetchRange,
@@ -129,17 +130,18 @@ export function CalendarScreen({ feed, now = Date.now }: CalendarScreenProps) {
   const changeView = (next: ViewMode) => {
     if (next === view) return;
     // 月表示 → 週表示：今日がその月にあれば今日の週、なければ月初の週
+    // 月表示 → 週表示で、期間制限の外の週に移らないよう、範囲内の日付に丸める
     const base =
       next === 'week' ? (startOfMonth(today) === anchor ? today : anchor) : addDays(anchor, 3);
     setView(next);
-    setAnchor(normalizeAnchor(next, base, weekStart));
+    setAnchor(normalizeAnchor(next, clampDate(base, me.bounds), weekStart));
   };
 
   const changeWeekStart = async (ws: WeekStart) => {
     try {
       const updated = feed.saveWeekStart ? await feed.saveWeekStart(ws) : { ...me, weekStart: ws };
       setMe(updated);
-      setAnchor(normalizeAnchor(view, view === 'week' ? addDays(anchor, 3) : anchor, ws));
+      setAnchor(normalizeAnchor(view, clampDate(view === 'week' ? addDays(anchor, 3) : anchor, updated.bounds), ws));
     } catch (e) {
       setError(errorMessage(e));
     }

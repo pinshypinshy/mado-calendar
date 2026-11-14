@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   canShift,
+  clampDate,
   formatEventTime,
   fetchRange,
   initialScrollMinutes,
@@ -49,6 +50,14 @@ describe('期間制限の範囲外へは移動できない', () => {
   test('制限なし', () => {
     expect(canShift('week', '2026-11-15', 1, { min: null, max: null })).toBe(true);
   });
+});
+
+test('clampDate', () => {
+  const bounds = { min: '2026-10-15', max: '2026-12-16' };
+  expect(clampDate('2026-10-01', bounds)).toBe('2026-10-15');
+  expect(clampDate('2026-12-16', bounds)).toBe('2026-12-15');
+  expect(clampDate('2026-11-01', bounds)).toBe('2026-11-01');
+  expect(clampDate('2026-01-01', { min: null, max: null })).toBe('2026-01-01');
 });
 
 describe('週表示の開始時刻（要件 4.3）', () => {
