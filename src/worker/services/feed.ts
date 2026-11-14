@@ -72,9 +72,9 @@ export class FeedService {
       }
     }
 
-    const calendars = await this.d.data.selectedCalendars();
+    const calendars = await this.d.data.selectedCalendars({ force });
     const [directory, events, rules, overrides] = await Promise.all([
-      this.d.data.labelDirectory(calendars),
+      this.d.data.labelDirectory(calendars, { force }),
       this.d.data.events(
         calendars.map((c) => c.id),
         range.from,

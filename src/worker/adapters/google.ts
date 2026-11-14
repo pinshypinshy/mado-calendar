@@ -98,7 +98,8 @@ export class GoogleCalendarSource implements CalendarSource {
     const res = await this.fetcher(url, { headers: { Authorization: `Bearer ${await this.accessToken()}` } });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      throw new AppError('upstream_error', `Google Calendar API がエラーを返しました（${res.status}）：${body.slice(0, 300)}`);
+      console.error(`Google Calendar API error ${res.status} ${path}: ${body.slice(0, 500)}`);
+      throw new AppError('upstream_error', `Google カレンダーから予定を取得できませんでした（${res.status}）`);
     }
     return (await res.json()) as T;
   }
@@ -200,7 +201,8 @@ export class GoogleOAuthProvider implements OAuthProvider {
     const json = (await res.json().catch(() => ({}))) as Partial<GoogleTokenResponse> & { error?: string };
     if (!res.ok) {
       if (json.error === 'invalid_grant' && params['grant_type'] === 'refresh_token') throw new OAuthRevokedError();
-      throw new AppError('upstream_error', `Google のトークンエンドポイントがエラーを返しました（${res.status} ${json.error ?? ''}）`);
+      console.error(`Google token endpoint error ${res.status}: ${json.error ?? ''}`);
+      throw new AppError('upstream_error', `Google との連携でエラーが発生しました（${res.status}）`);
     }
     return json as GoogleTokenResponse;
   }

@@ -17,6 +17,9 @@
     }
   ],
   "routes": [{ "pattern": "mado-cal.yuki-hiraishi.com", "custom_domain": true }],
+  // 独自ドメイン以外（*.workers.dev）からは配信しない。Cookie と招待 URL のドメインを1つにするため
+  "workers_dev": false,
+  "preview_urls": false,
   "vars": {
     "CALENDAR_SOURCE": "google"
   },

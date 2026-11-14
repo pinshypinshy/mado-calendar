@@ -9,6 +9,11 @@ import type { CacheRepository, CalendarSelectionRepository, CalendarSource, Cloc
 
 export const CACHE_TTL_MS = 5 * 60 * 1000;
 
+export interface FetchOptions {
+  /** キャッシュを使わずに Google から取り直す */
+  force?: boolean;
+}
+
 export interface CalendarDataDeps {
   source: CalendarSource;
   cache: CacheRepository;
@@ -20,21 +25,21 @@ export interface CalendarDataDeps {
 export class CalendarData {
   constructor(private readonly d: CalendarDataDeps) {}
 
-  calendars(): Promise<SourceCalendar[]> {
-    return this.cached('meta:calendars', () => this.d.source.listCalendars());
+  calendars(opts: FetchOptions = {}): Promise<SourceCalendar[]> {
+    return this.cached('meta:calendars', () => this.d.source.listCalendars(), opts.force);
   }
 
-  palette(): Promise<ColorPalette> {
-    return this.cached('meta:palette', () => this.d.source.getColorPalette());
+  palette(opts: FetchOptions = {}): Promise<ColorPalette> {
+    return this.cached('meta:palette', () => this.d.source.getColorPalette(), opts.force);
   }
 
-  labels(calendarId: string): Promise<SourceLabel[]> {
-    return this.cached(`meta:labels:${calendarId}`, () => this.d.source.listLabels(calendarId));
+  labels(calendarId: string, opts: FetchOptions = {}): Promise<SourceLabel[]> {
+    return this.cached(`meta:labels:${calendarId}`, () => this.d.source.listLabels(calendarId), opts.force);
   }
 
   /** 対象として選んだカレンダー。選んだあとに Google 側で消えたものは除く */
-  async selectedCalendars(): Promise<SourceCalendar[]> {
-    const [ids, all] = await Promise.all([this.d.selection.list(), this.calendars()]);
+  async selectedCalendars(opts: FetchOptions = {}): Promise<SourceCalendar[]> {
+    const [ids, all] = await Promise.all([this.d.selection.list(), this.calendars(opts)]);
     const byId = new Map(all.map((c) => [c.id, c]));
     return ids.flatMap((id) => {
       const c = byId.get(id);
@@ -42,21 +47,21 @@ export class CalendarData {
     });
   }
 
-  async labelCatalog(calendars: SourceCalendar[]): Promise<LabelInfo[]> {
+  async labelCatalog(calendars: SourceCalendar[], opts: FetchOptions = {}): Promise<LabelInfo[]> {
     const [palette, labelLists] = await Promise.all([
-      this.palette(),
-      Promise.all(calendars.map((c) => this.labels(c.id))),
+      this.palette(opts),
+      Promise.all(calendars.map((c) => this.labels(c.id, opts))),
     ]);
     return calendars.flatMap((c, i) => buildLabelCatalog(c, labelLists[i] ?? [], palette));
   }
 
-  async labelDirectory(calendars: SourceCalendar[]): Promise<LabelDirectory> {
-    const [catalog, names] = await Promise.all([this.labelCatalog(calendars), this.d.labelNames.list()]);
+  async labelDirectory(calendars: SourceCalendar[], opts: FetchOptions = {}): Promise<LabelDirectory> {
+    const [catalog, names] = await Promise.all([this.labelCatalog(calendars, opts), this.d.labelNames.list()]);
     return new LabelDirectory(calendars, catalog, names);
   }
 
   /** [from, to) と重なる予定。force なら キャッシュを使わずに Google から取り直す */
-  async events(calendarIds: string[], from: number, to: number, opts: { force?: boolean } = {}): Promise<SourceEvent[]> {
+  async events(calendarIds: string[], from: number, to: number, opts: FetchOptions = {}): Promise<SourceEvent[]> {
     const months = monthsCovering(from, to);
     const chunks = await Promise.all(
       calendarIds.flatMap((calendarId) => months.map((month) => this.monthEvents(calendarId, month, opts.force ?? false))),
@@ -81,6 +86,7 @@ export class CalendarData {
   /**
    * キャッシュが新しければそれを返し、古ければ取り直す。
    * 取り直しに失敗したときは、古いキャッシュがあればそれを返す（Google の一時的な障害で画面が空にならないように）。
+   * ただし force（更新ボタン）のときは、古いデータを最新と見せないよう、失敗をそのまま返す。
    */
   private async cached<T>(key: string, load: () => Promise<T>, force = false): Promise<T> {
     const now = this.d.clock.now();
@@ -91,7 +97,7 @@ export class CalendarData {
       await this.d.cache.put(key, JSON.stringify(value), now);
       return value;
     } catch (err) {
-      if (entry) {
+      if (entry && !force) {
         console.warn(`cache fallback for ${key}`, err);
         return JSON.parse(entry.payload) as T;
       }

@@ -139,6 +139,16 @@ describe('閲覧者の参加', () => {
     expect(me.body).toEqual({ displayName: '家族', weekStart: 0, bounds: { min: null, max: null } });
   });
 
+  test('localhost 以外では、http でも Cookie に Secure を付ける。localhost では付けない', async () => {
+    const v = await createViewer();
+    const local = new TestClient(ctx.app, 'http://localhost:5173');
+    await local.request('/api/viewer/join', { method: 'POST', body: { code: v.code } });
+    expect(local.lastSetCookies.find((c) => c.startsWith('mado_v='))).not.toMatch(/Secure/);
+    const remote = new TestClient(ctx.app, 'http://mado-cal.example.com');
+    await remote.request('/api/viewer/join', { method: 'POST', body: { code: v.code } });
+    expect(remote.lastSetCookies.find((c) => c.startsWith('mado_v='))).toMatch(/Secure/);
+  });
+
   test('小文字・ハイフンなしでも参加できる', async () => {
     const v = await createViewer();
     await joinAs(v.code.replace(/-/g, '').toLowerCase());

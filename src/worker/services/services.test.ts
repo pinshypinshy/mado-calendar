@@ -66,6 +66,15 @@ describe('CalendarData', () => {
     expect(await data.events(['fake-main'], from, to)).toEqual(first);
   });
 
+  test('更新ボタン（force）のときは、取得に失敗したら古いキャッシュで代替せずエラーにする', async () => {
+    const { data, source } = setup();
+    await data.events(['fake-main'], 0, 1);
+    source.listEvents = async () => {
+      throw new Error('google down');
+    };
+    await expect(data.events(['fake-main'], 0, 1, { force: true })).rejects.toThrow('google down');
+  });
+
   test('キャッシュがなく取得にも失敗したらエラー', async () => {
     const { data, source } = setup();
     source.listEvents = async () => {
@@ -97,7 +106,7 @@ describe('TokenProvider', () => {
       },
     };
     const oauth = { calendarScope: 'x', refresh, authorizationUrl: () => '', exchangeCode: async () => { throw new Error(); } } as OAuthProvider;
-    return { clock, provider: new TokenProvider({ tokens, oauth, secretBox, clock }) };
+    return { clock, tokens, provider: new TokenProvider({ tokens, oauth, secretBox, clock }) };
   }
 
   test('期限内ならそのまま、期限が近ければ取り直す', async () => {
@@ -114,12 +123,25 @@ describe('TokenProvider', () => {
     expect(calls).toBe(1);
   });
 
-  test('リフレッシュトークンが失効していたら calendar_not_connected', async () => {
-    const { clock, provider } = await setup(async () => {
+  test('リフレッシュトークンが失効していたら calendar_not_connected にし、保存していたトークンを消す', async () => {
+    const { clock, provider, tokens } = await setup(async () => {
       throw new OAuthRevokedError();
     });
     clock.advance(60 * 60 * 1000);
     await expect(provider.accessToken()).rejects.toMatchObject({ code: 'calendar_not_connected' });
+    expect(await tokens.get()).toBeNull();
+  });
+
+  test('並行して呼ばれても、取り直しは1回', async () => {
+    let calls = 0;
+    const { clock, provider } = await setup(async () => {
+      calls++;
+      return { accessToken: 'new-access', expiresIn: 3600 };
+    });
+    clock.advance(60 * 60 * 1000);
+    const tokens = await Promise.all([provider.accessToken(), provider.accessToken(), provider.accessToken()]);
+    expect(tokens).toEqual(['new-access', 'new-access', 'new-access']);
+    expect(calls).toBe(1);
   });
 });
 

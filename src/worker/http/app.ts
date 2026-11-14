@@ -252,7 +252,6 @@ function setSessionCookie(c: Context, name: string, value: string, maxAgeSeconds
   setCookie(c, name, value, {
     path: '/',
     httpOnly: true,
-    // ローカル開発（http://localhost）でも動くよう、https のときだけ Secure を付ける
     secure: isHttps(c),
     sameSite: 'Lax',
     maxAge: maxAgeSeconds,
@@ -263,8 +262,15 @@ function origin(c: Context): string {
   return new URL(c.req.url).origin;
 }
 
+/** Secure を付けるか。付けないのはローカル開発（http://localhost）だけ */
 function isHttps(c: Context): boolean {
-  return new URL(c.req.url).protocol === 'https:';
+  return !isLocalHost(new URL(c.req.url).hostname);
+}
+
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+export function isLocalHost(hostname: string): boolean {
+  return LOCAL_HOSTS.has(hostname);
 }
 
 function callbackUrl(c: Context): string {
