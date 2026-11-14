@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mado-calendar",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/auth/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mado-calendar",
+      // `npx wrangler d1 create mado-calendar` で作成した ID に置き換える（ローカル開発ではこのままでも動く）
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "routes": [{ "pattern": "mado-cal.yuki-hiraishi.com", "custom_domain": true }],
+  "vars": {
+    "CALENDAR_SOURCE": "google"
+  },
+  "observability": { "enabled": true }
+}
