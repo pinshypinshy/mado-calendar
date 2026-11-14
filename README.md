@@ -63,6 +63,7 @@ npx wrangler secret put GOOGLE_CLIENT_SECRET
 npm run deploy
 ```
 
+- Cloudflare のダッシュボードで、`yuki-hiraishi.com` の「SSL/TLS → エッジ証明書 → Always Use HTTPS」を有効にする（画面のファイルを http で配信させないため）。
 - `ENCRYPTION_KEY` を変えると、保存済みの閲覧者 ID とリフレッシュトークンを復号できなくなる。変えたら、閲覧者 ID の再発行と管理画面へのログインをやり直す。
 - 独自ドメイン（`mado-cal.yuki-hiraishi.com`）は `wrangler.jsonc` の `routes` で設定している。
 
