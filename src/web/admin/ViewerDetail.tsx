@@ -1,0 +1,304 @@
+// 閲覧者1人の設定：ID・招待 URL、期間制限、週の開始曜日、設定のコピー、表示ルール、プレビュー（要件 3.3〜3.8）。
+
+import { useCallback, useMemo, useState } from 'react';
+import type { AdminLabel, AdminViewerDetail, DisplayRule, Level, PeriodLimit, WeekStart } from '../../shared/api';
+import { LEVEL_LABELS, LEVELS } from '../../shared/api';
+import type { AdminApi } from '../api/clients';
+import { CalendarScreen } from '../calendar/CalendarScreen';
+import { errorMessage } from '../ui/errors';
+import { formatDateTime } from './format';
+import { groupLabels, labelTitle } from './labels';
+import { useLoad } from './useLoad';
+
+export function ViewerDetail({ api, viewerId, onBack }: { api: AdminApi; viewerId: string; onBack: () => void }) {
+  const { data, error, setData, setError } = useLoad(
+    useCallback(async () => {
+      const [viewer, rules, labels, calendars, viewers] = await Promise.all([
+        api.viewer(viewerId),
+        api.rules(viewerId),
+        api.labels(),
+        api.calendars(),
+        api.viewers(),
+      ]);
+      return { viewer, rules, labels, calendars, viewers };
+    }, [api, viewerId]),
+  );
+  // 設定を変えたらプレビューを作り直す
+  const [previewVersion, setPreviewVersion] = useState(0);
+  const preview = useMemo(() => api.preview(viewerId), [api, viewerId, previewVersion]);
+
+  if (error && !data) return <p className="error">{error}</p>;
+  if (!data) return <p className="muted">読み込み中…</p>;
+  const { viewer } = data;
+
+  const run = async (fn: () => Promise<Partial<typeof data> | void>) => {
+    try {
+      const patch = await fn();
+      if (patch) setData({ ...data, ...patch });
+      setError(null);
+      setPreviewVersion((n) => n + 1);
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  };
+  const updateViewer = (patch: Parameters<AdminApi['updateViewer']>[1]) =>
+    run(async () => ({ viewer: await api.updateViewer(viewer.id, patch) }));
+
+  return (
+    <section>
+      <button type="button" onClick={onBack}>
+        ‹ 一覧に戻る
+      </button>
+      {error && <p className="error">{error}</p>}
+
+      <div className="card">
+        <h2>
+          <EditableName value={viewer.displayName} onSave={(displayName) => updateViewer({ displayName })} />
+          {viewer.status === 'disabled' && <span className="badge">無効</span>}
+        </h2>
+        <p className="muted small">
+          最終閲覧：{viewer.lastSeenAt === null ? 'まだ見ていません' : formatDateTime(viewer.lastSeenAt)}
+        </p>
+        <CopyField label="閲覧者 ID" value={viewer.code} />
+        <CopyField label="招待 URL" value={viewer.inviteUrl} />
+        <div className="button-row">
+          <button
+            type="button"
+            disabled={viewer.status === 'disabled'}
+            onClick={() =>
+              confirm(`${viewer.displayName} の ID を無効化しますか？参加済みの端末もすべて表示できなくなります。`) &&
+              void run(async () => ({ viewer: await api.disableViewer(viewer.id) }))
+            }
+          >
+            無効化
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              confirm('ID を再発行しますか？古い ID と、参加済みの端末はすべて使えなくなります。') &&
+              void run(async () => ({ viewer: await api.regenerateViewer(viewer.id) }))
+            }
+          >
+            再発行
+          </button>
+          <button
+            type="button"
+            className="danger"
+            onClick={async () => {
+              if (!confirm(`${viewer.displayName} を削除しますか？設定もすべて消えます。`)) return;
+              try {
+                await api.deleteViewer(viewer.id);
+                onBack();
+              } catch (e) {
+                setError(errorMessage(e));
+              }
+            }}
+          >
+            削除
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>週の開始曜日の初期値</h3>
+        <select
+          value={viewer.defaultWeekStart}
+          onChange={(e) => void updateViewer({ defaultWeekStart: Number(e.target.value) as WeekStart })}
+        >
+          <option value={0}>日曜</option>
+          <option value={1}>月曜</option>
+        </select>
+        <p className="muted small">閲覧者が自分の画面で切り替えた場合は、そちらが優先されます。</p>
+      </div>
+
+      <PeriodEditor value={viewer.period} onSave={(period) => updateViewer({ period })} />
+
+      <CopySettings
+        viewers={data.viewers.filter((v) => v.id !== viewer.id)}
+        onCopy={(sourceId) =>
+          run(async () => {
+            const copied = await api.copySettings(viewer.id, sourceId);
+            return { viewer: copied, rules: await api.rules(viewer.id) };
+          })
+        }
+      />
+
+      <RulesEditor
+        labels={data.labels}
+        calendars={data.calendars}
+        rules={data.rules}
+        onChange={(calendarId, labelKey, level) =>
+          run(async () => ({ rules: await api.setRule(viewer.id, calendarId, labelKey, level) }))
+        }
+      />
+
+      <div className="card">
+        <h3>プレビュー（{viewer.displayName} に見えている画面）</h3>
+        <div className="preview">
+          <CalendarScreen key={previewVersion} feed={preview} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function EditableName({ value, onSave }: { value: string; onSave: (v: string) => void }) {
+  return (
+    <input
+      className="name-input"
+      defaultValue={value}
+      key={value}
+      onBlur={(e) => e.target.value.trim() !== value && e.target.value.trim() !== '' && onSave(e.target.value.trim())}
+      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      aria-label="表示名"
+    />
+  );
+}
+
+function CopyField({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="copy-field">
+      <span className="muted small">{label}</span>
+      <code>{value}</code>
+      <button
+        type="button"
+        onClick={async () => {
+          await navigator.clipboard.writeText(value);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }}
+      >
+        {copied ? 'コピーしました' : 'コピー'}
+      </button>
+    </div>
+  );
+}
+
+function PeriodEditor({ value, onSave }: { value: PeriodLimit; onSave: (p: PeriodLimit) => void }) {
+  const [draft, setDraft] = useState(value);
+  const months = (v: number | null) => (v === null ? '' : String(v));
+  const parse = (s: string) => (s.trim() === '' ? null : Number(s));
+  const dirty = JSON.stringify(draft) !== JSON.stringify(value);
+  return (
+    <div className="card">
+      <h3>期間制限</h3>
+      <label className="check">
+        <input type="checkbox" checked={draft.enabled} onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })} />
+        期間を制限する
+      </label>
+      {draft.enabled && (
+        <div className="period">
+          <label>
+            過去
+            <input
+              type="number"
+              min={0}
+              value={months(draft.pastMonths)}
+              placeholder="制限なし"
+              onChange={(e) => setDraft({ ...draft, pastMonths: parse(e.target.value) })}
+            />
+            か月前まで
+          </label>
+          <label>
+            未来
+            <input
+              type="number"
+              min={0}
+              value={months(draft.futureMonths)}
+              placeholder="制限なし"
+              onChange={(e) => setDraft({ ...draft, futureMonths: parse(e.target.value) })}
+            />
+            か月先まで
+          </label>
+          <p className="muted small">空欄は制限なし。0 は今日まで。</p>
+        </div>
+      )}
+      <button type="button" disabled={!dirty} onClick={() => onSave(draft)}>
+        保存
+      </button>
+    </div>
+  );
+}
+
+function CopySettings({
+  viewers,
+  onCopy,
+}: {
+  viewers: { id: string; displayName: string }[];
+  onCopy: (sourceId: string) => Promise<void>;
+}) {
+  const [source, setSource] = useState('');
+  if (viewers.length === 0) return null;
+  return (
+    <div className="card">
+      <h3>設定のコピー</h3>
+      <p className="muted small">表示ルール・個別設定・期間制限・週の開始曜日の初期値を、ほかの閲覧者からコピーします（今の設定は上書きされます）。</p>
+      <div className="inline-form">
+        <select value={source} onChange={(e) => setSource(e.target.value)}>
+          <option value="">コピー元を選ぶ</option>
+          {viewers.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.displayName}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          disabled={source === ''}
+          onClick={() => confirm('今の設定を上書きしてコピーしますか？') && void onCopy(source).then(() => setSource(''))}
+        >
+          コピー
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RulesEditor({
+  labels,
+  calendars,
+  rules,
+  onChange,
+}: {
+  labels: AdminLabel[];
+  calendars: Parameters<typeof groupLabels>[1];
+  rules: DisplayRule[];
+  onChange: (calendarId: string, labelKey: string, level: Level) => void;
+}) {
+  const ruleMap = new Map(rules.map((r) => [`${r.calendarId}\u0000${r.labelKey}`, r.level]));
+  const levelOf = (l: AdminLabel): Level => ruleMap.get(`${l.calendarId}\u0000${l.labelKey}`) ?? 'hidden';
+  const row = (l: AdminLabel) => (
+    <div key={l.labelKey} className="row">
+      <span className="swatch" style={{ background: l.color }} />
+      <span className="row-label">
+        {labelTitle(l)}
+        <span className="muted small"> → {l.categoryName}</span>
+      </span>
+      <select value={levelOf(l)} onChange={(e) => onChange(l.calendarId, l.labelKey, e.target.value as Level)}>
+        {LEVELS.map((lv) => (
+          <option key={lv} value={lv}>
+            {LEVEL_LABELS[lv]}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+  return (
+    <div className="card">
+      <h3>表示ルール（カレンダー × ラベル）</h3>
+      <p className="muted small">設定していない組み合わせは「非表示」です。</p>
+      {groupLabels(labels, calendars).map((g) => (
+        <div key={g.calendar.id}>
+          <h4>{g.calendar.name}</h4>
+          {g.labels.map(row)}
+          {g.none.map(row)}
+          <details open={g.labels.length === 0}>
+            <summary className="muted small">colorId のラベル（予備。Google がラベル ID を返さない予定に使う）</summary>
+            {g.colors.map(row)}
+          </details>
+        </div>
+      ))}
+    </div>
+  );
+}

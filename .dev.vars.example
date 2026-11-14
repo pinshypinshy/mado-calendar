@@ -1,0 +1,15 @@
+# ローカル開発用の環境変数。`cp .dev.vars.example .dev.vars` でコピーして使う（.dev.vars は git 管理外）。
+
+# fake：Google につながず、フェイクのカレンダーとログインで動かす（localhost でのみ動く）
+# google：本物の Google カレンダーを使う（GOOGLE_CLIENT_ID と GOOGLE_CLIENT_SECRET が必要）
+CALENDAR_SOURCE=fake
+
+# 管理画面に入れるメールアドレス。fake のときは、この値でそのままログインできる
+ADMIN_EMAIL=owner@example.com
+
+# 暗号鍵（32バイトを base64 で表した値）。作り方：openssl rand -base64 32
+ENCRYPTION_KEY=
+
+# CALENDAR_SOURCE=google のときだけ必要
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
