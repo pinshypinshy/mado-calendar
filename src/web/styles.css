@@ -397,41 +397,27 @@ button.icon {
   background: var(--accent);
   color: #fff;
 }
+/* マスの高さに入るだけ予定を出す（CalendarScreen.tsx の useCellCapacity が予定欄の高さを測る）。
+   予定欄の高さが中身で変わると、測った行数と食い違うので、contain: size で中身を高さの計算から外し、
+   マスの高さを「画面の高さ ÷ 週の数」だけで決める */
+.month .month-week {
+  grid-template-rows: minmax(0, 1fr);
+}
 .cell-events {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-/* 月表示：マスの高さに入るだけ予定を出す（CalendarScreen.tsx の useCellCapacity が予定欄の高さを測る）。
-   予定欄の高さが中身で変わると、測った行数と食い違うので、contain: size で中身を高さの計算から外し、
-   マスの高さを「画面の高さ ÷ 週の数」だけで決める */
-.month.is-fit .month-week {
-  grid-template-rows: minmax(0, 1fr);
-}
-.month.is-fit .cell-events {
   flex: 1 1 0;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
   contain: size;
-  gap: var(--fit-line-gap);
+  gap: var(--cell-line-gap);
 }
-.month.is-fit .mini,
-.month.is-fit .more {
+.month .mini,
+.month .more {
   flex: none;
-  height: var(--fit-line-height);
-  line-height: var(--fit-line-height);
-}
-/* 3週間表示：3行なので、マスを高くして予定を多く出す（「12/1」のような日付も入る幅にする）。
-   最小の高さは、6件（約115px）が収まり、背の低い iPhone でも3行がスクロールせずに収まる値にする */
-.month.is-three-weeks .month-week {
-  min-height: 130px;
-}
-.month.is-three-weeks .month-cell .dn {
-  width: auto;
-  min-width: 22px;
-  padding: 0 4px;
-  border-radius: 11px;
+  height: var(--cell-line-height);
+  line-height: var(--cell-line-height);
 }
 .mini {
   font-size: 10px;

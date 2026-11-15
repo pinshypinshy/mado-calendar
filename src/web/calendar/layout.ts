@@ -16,15 +16,11 @@ import {
   type WeekStart,
 } from '../../shared/time';
 
-/** 週表示・3週間表示（週の開始曜日にそろえた3週間）・月表示 */
-export type ViewMode = 'week' | 'threeWeeks' | 'month';
+export type ViewMode = 'week' | 'month';
 
 export const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
-/** 週単位で区切る表示の日数。月表示は日数が月で変わるので持たない */
-const WEEK_BASED_DAYS = { week: 7, threeWeeks: 21 } as const satisfies Record<Exclude<ViewMode, 'month'>, number>;
-
-/** 表示する期間の基準日。週表示・3週間表示なら週の開始日、月表示なら月の1日 */
+/** 表示する期間の基準日。週表示なら週の開始日、月表示なら月の1日 */
 export function normalizeAnchor(view: ViewMode, date: DateStr, weekStart: WeekStart): DateStr {
   return view === 'month' ? startOfMonth(date) : startOfWeek(date, weekStart);
 }
@@ -40,11 +36,11 @@ export function fetchRange(view: ViewMode, anchor: DateStr, weekStart: WeekStart
 function periodRange(view: ViewMode, anchor: DateStr): { from: DateStr; to: DateStr } {
   return view === 'month'
     ? { from: anchor, to: addMonths(anchor, 1) }
-    : { from: anchor, to: addDays(anchor, WEEK_BASED_DAYS[view]) };
+    : { from: anchor, to: addDays(anchor, 7) };
 }
 
 export function shiftAnchor(view: ViewMode, anchor: DateStr, dir: -1 | 1): DateStr {
-  return view === 'month' ? addMonths(anchor, dir) : addDays(anchor, WEEK_BASED_DAYS[view] * dir);
+  return view === 'month' ? addMonths(anchor, dir) : addDays(anchor, 7 * dir);
 }
 
 /** 期間制限の範囲内に移動できるか（要件 3.6、4.3） */
@@ -66,7 +62,7 @@ export function clampDate(date: DateStr, bounds: DateBounds): DateStr {
  * 表示を切り替えたときの基準日。
  * - 今の期間に今日が含まれていれば、今日を含む期間に切り替える
  * - 含まれていなければ、月表示へは「最初の週の真ん中の日」を含む月へ、
- *   週表示・3週間表示へは、今の期間の最初の日を含む週から始める
+ *   週表示へは、今の期間の最初の日を含む週にする
  * 期間制限の外に移らないよう、範囲内の日付に丸めてから決める。
  */
 export function switchAnchor(
@@ -86,7 +82,7 @@ export function switchAnchor(
 export function periodTitle(view: ViewMode, anchor: DateStr): string {
   const [y, m] = splitDate(anchor);
   if (view === 'month') return `${y}年${m}月`;
-  const end = addDays(anchor, WEEK_BASED_DAYS[view] - 1);
+  const end = addDays(anchor, 6);
   const [, m2, d2] = splitDate(end);
   const [, , d1] = splitDate(anchor);
   return m === m2 ? `${y}年${m}月${d1}日〜${d2}日` : `${y}年${m}月${d1}日〜${m2}月${d2}日`;
@@ -101,13 +97,6 @@ export function monthGrid(monthStart: DateStr, weekStart: WeekStart): DateStr[][
     weeks.push(Array.from({ length: 7 }, (_, i) => addDays(d, i)));
   }
   return weeks;
-}
-
-/** 3週間表示のグリッド。週の開始日から、週ごとの7日の配列 */
-export function threeWeeksGrid(weekStartDate: DateStr): DateStr[][] {
-  return Array.from({ length: WEEK_BASED_DAYS.threeWeeks / 7 }, (_, w) =>
-    Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, w * 7 + i)),
-  );
 }
 
 /** 週表示で、上部の帯に出す予定か（終日の予定と、日をまたぐ予定） */

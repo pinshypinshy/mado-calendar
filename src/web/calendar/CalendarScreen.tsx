@@ -26,7 +26,6 @@ import {
   periodTitle,
   shiftAnchor,
   switchAnchor,
-  threeWeeksGrid,
   type ViewMode,
   WEEKDAY_LABELS,
 } from './layout';
@@ -37,7 +36,7 @@ const AUTO_REFRESH_MS = 5 * 60 * 1000;
 const REFETCH_MIN_INTERVAL_MS = 15 * 1000;
 const PX_PER_MIN = 0.8;
 /** 開いたときの表示（要件 4.3） */
-const DEFAULT_VIEW: ViewMode = 'threeWeeks';
+const DEFAULT_VIEW: ViewMode = 'month';
 
 export interface CalendarScreenProps {
   feed: CalendarFeed;
@@ -169,9 +168,6 @@ export function CalendarScreen({ feed, now = Date.now }: CalendarScreenProps) {
             <button type="button" aria-pressed={view === 'week'} onClick={() => changeView('week')}>
               週
             </button>
-            <button type="button" aria-pressed={view === 'threeWeeks'} onClick={() => changeView('threeWeeks')}>
-              3週
-            </button>
             <button type="button" aria-pressed={view === 'month'} onClick={() => changeView('month')}>
               月
             </button>
@@ -186,25 +182,8 @@ export function CalendarScreen({ feed, now = Date.now }: CalendarScreenProps) {
 
       {view === 'week' ? (
         <WeekView anchor={anchor} events={events} now={currentTime} onSelect={setSelectedEvent} />
-      ) : view === 'threeWeeks' ? (
-        <DayGrid
-          weeks={threeWeeksGrid(anchor)}
-          today={today}
-          events={events}
-          maxPerCell={THREE_WEEKS_CELL_MAX}
-          className="is-three-weeks"
-          dayLabel={(d) => (d.endsWith('-01') ? `${Number(d.slice(5, 7))}/1` : String(Number(d.slice(8))))}
-          onSelectDate={setSelectedDate}
-        />
       ) : (
-        <DayGrid
-          weeks={monthGrid(anchor, weekStart)}
-          today={today}
-          events={events}
-          maxPerCell="fit"
-          isOther={(d) => d.slice(0, 7) !== anchor.slice(0, 7)}
-          onSelectDate={setSelectedDate}
-        />
+        <MonthView month={anchor} weekStart={weekStart} today={today} events={events} onSelectDate={setSelectedDate} />
       )}
 
       <footer className="cal-footer">
@@ -328,76 +307,61 @@ function WeekView({
   );
 }
 
-/** 3週間表示は行が月表示より少なくマスが高いので、1マスに多く出す */
-const THREE_WEEKS_CELL_MAX = 6;
-
 /**
  * 月表示のマスで、予定と「+N」の1行の高さと、行の間の隙間（px）。
- * 何行入るかの計算に使うので、CSS もこの値を使う（styles.css の .month.is-fit）
+ * 何行入るかの計算に使うので、CSS もこの値を使う（styles.css の .month）
  */
-const FIT_LINE_HEIGHT = 13;
-const FIT_LINE_GAP = 2;
+const CELL_LINE_HEIGHT = 13;
+const CELL_LINE_GAP = 2;
 
 /**
- * maxPerCell が 'fit' のとき、マスの予定欄の高さを測り、何行入るかを返す。
+ * マスの予定欄の高さを測り、何行入るかを返す。
  * 測る前（最初の描画）は null。useLayoutEffect で描画の前に測るので、件数が変わる様子は見えない。
  * マスの高さは予定の数で変わらない（styles.css）ので、どのマスも同じ行数として扱う
  */
-function useCellCapacity(enabled: boolean, layoutKey: string) {
+function useCellCapacity(layoutKey: string) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [capacity, setCapacity] = useState<number | null>(null);
   useLayoutEffect(() => {
     const root = rootRef.current;
-    if (!enabled || !root) return;
+    if (!root) return;
     // 期間を移動するとマスの要素が作り直され、週の数（4〜6）でマスの高さも変わるので、そのたびに測り直す
     const area = root.querySelector<HTMLElement>('.cell-events');
     if (!area) return;
-    const measure = () => setCapacity(cellLineCapacity(area.clientHeight, FIT_LINE_HEIGHT, FIT_LINE_GAP));
+    const measure = () => setCapacity(cellLineCapacity(area.clientHeight, CELL_LINE_HEIGHT, CELL_LINE_GAP));
     measure();
     const observer = new ResizeObserver(measure); // 画面の回転、ツールバーの出し入れ
     observer.observe(area);
     return () => observer.disconnect();
-  }, [enabled, layoutKey]);
+  }, [layoutKey]);
   return { rootRef, capacity };
 }
 
-/** 月表示・3週間表示のマス目。日付をタップすると、その日の予定一覧を出す */
-function DayGrid({
-  weeks,
+/**
+ * 月表示のマス目。各マスには、マスの高さに入るだけ予定を出す（要件 4.3）。
+ * 日付をタップすると、その日の予定一覧を出す
+ */
+function MonthView({
+  month,
+  weekStart,
   today,
   events,
-  maxPerCell,
-  className = '',
-  isOther = () => false,
-  dayLabel = (d) => String(Number(d.slice(8))),
   onSelectDate,
 }: {
-  weeks: DateStr[][];
+  /** 月の1日 */
+  month: DateStr;
+  weekStart: WeekStart;
   today: DateStr;
   events: ViewerEvent[];
-  /** 1マスに出す予定の最大件数。超えた分は「+N」にする。'fit' はマスの高さに入るだけ出す */
-  maxPerCell: number | 'fit';
-  className?: string;
-  /** 薄く表示する日（月表示の前後の月の日） */
-  isOther?: (d: DateStr) => boolean;
-  dayLabel?: (d: DateStr) => string;
   onSelectDate: (d: DateStr) => void;
 }) {
-  const fit = maxPerCell === 'fit';
-  const { rootRef, capacity } = useCellCapacity(fit, `${weeks[0]![0]}/${weeks.length}`);
-  const countsFor = (total: number) => {
-    if (!fit) {
-      const shown = Math.min(total, maxPerCell);
-      return { shown, hidden: total - shown };
-    }
-    // 測る前の1回だけ使う値。描画の前に測り直すので、画面には出ない
-    return fitCellEvents(total, capacity ?? 4);
-  };
+  const weeks = monthGrid(month, weekStart);
+  const { rootRef, capacity } = useCellCapacity(`${weeks[0]![0]}/${weeks.length}`);
   return (
     <div
       ref={rootRef}
-      className={`month ${fit ? 'is-fit' : ''} ${className}`}
-      style={fit ? ({ '--fit-line-height': `${FIT_LINE_HEIGHT}px`, '--fit-line-gap': `${FIT_LINE_GAP}px` } as CSSProperties) : undefined}
+      className="month"
+      style={{ '--cell-line-height': `${CELL_LINE_HEIGHT}px`, '--cell-line-gap': `${CELL_LINE_GAP}px` } as CSSProperties}
     >
       <div className="month-head">
         {weeks[0]!.map((d) => (
@@ -408,15 +372,16 @@ function DayGrid({
         <div key={week[0]} className="month-week">
           {week.map((d) => {
             const dayEvents = sortForDay(eventsOnDate(events, d));
-            const { shown, hidden } = countsFor(dayEvents.length);
+            // 測る前の1回だけ 4 を使う。描画の前に測り直すので、画面には出ない
+            const { shown, hidden } = fitCellEvents(dayEvents.length, capacity ?? 4);
             return (
               <button
                 type="button"
                 key={d}
-                className={`month-cell ${isOther(d) ? 'is-other' : ''} ${d === today ? 'is-today' : ''}`}
+                className={`month-cell ${d.slice(0, 7) !== month.slice(0, 7) ? 'is-other' : ''} ${d === today ? 'is-today' : ''}`}
                 onClick={() => onSelectDate(d)}
               >
-                <span className="dn">{dayLabel(d)}</span>
+                <span className="dn">{Number(d.slice(8))}</span>
                 <span className="cell-events">
                   {dayEvents.slice(0, shown).map((e) => (
                     <span key={e.id} className="mini" style={{ background: e.color }}>
