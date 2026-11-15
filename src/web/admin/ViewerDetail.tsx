@@ -6,6 +6,7 @@ import { LEVEL_LABELS, LEVELS } from '../../shared/api';
 import type { AdminApi } from '../api/clients';
 import { CalendarScreen } from '../calendar/CalendarScreen';
 import { errorMessage } from '../ui/errors';
+import { CalendarFold } from './CalendarFold';
 import { formatDateTime } from './format';
 import { groupLabels, labelTitle } from './labels';
 import { useLoad } from './useLoad';
@@ -320,20 +321,17 @@ function RulesEditor({
           ([, n]) => n > 0,
         );
         return (
-          // 開閉は <details> に任せる。key が変わらないので、ルールを変えて再描画しても開閉はそのまま残る
-          <details key={g.calendar.id} className="rule-group">
-            <summary>
-              <span className="rule-group-name">{g.calendar.name}</span>
-              <span className="levels">
-                {counts.map(([lv, n]) => (
-                  <span key={lv} className={`level level-${lv}`}>
-                    {LEVEL_LABELS[lv]} {n}
-                  </span>
-                ))}
+          <CalendarFold
+            key={g.calendar.id}
+            name={g.calendar.name}
+            summary={counts.map(([lv, n]) => (
+              <span key={lv} className={`level level-${lv}`}>
+                {LEVEL_LABELS[lv]} {n}
               </span>
-            </summary>
+            ))}
+          >
             {rows.map(row)}
-          </details>
+          </CalendarFold>
         );
       })}
     </div>

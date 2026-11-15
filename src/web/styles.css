@@ -776,11 +776,11 @@ details {
   padding-top: 8px;
 }
 
-.rule-group {
+.calendar-fold {
   margin-top: 0;
   border-top: 1px solid var(--line);
 }
-.rule-group summary {
+.calendar-fold summary {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -789,24 +789,29 @@ details {
   cursor: pointer;
 }
 /* ブラウザ標準の開閉の三角は、ブラウザや display の値で出方が変わるので、消して自前で出す */
-.rule-group summary::-webkit-details-marker {
+.calendar-fold summary::-webkit-details-marker {
   display: none;
 }
-.rule-group summary::before {
+.calendar-fold summary::before {
   content: '▸';
   color: var(--muted);
 }
-.rule-group[open] summary::before {
+.calendar-fold[open] summary::before {
   content: '▾';
 }
-.rule-group-name {
+.calendar-fold-name {
   font-size: 14px;
   font-weight: 600;
 }
-.rule-group .levels {
+/* カードの先頭に来たときは、カードの枠があるので上の線は要らない */
+.card > .calendar-fold:first-child {
+  border-top: none;
+}
+.calendar-fold .levels {
   margin-top: 0;
 }
-.rule-group .rule-row:last-child {
+.calendar-fold .rule-row:last-child,
+.calendar-fold .row:last-child {
   border-bottom: none;
 }
 .rule-row {
