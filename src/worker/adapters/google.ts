@@ -5,7 +5,7 @@
 // - https://developers.google.com/identity/protocols/oauth2/web-server
 
 import { jstMidnight } from '../../shared/time';
-import type { ColorPalette, SourceCalendar, SourceEvent, SourceLabel } from '../domain/event';
+import type { SourceCalendar, SourceEvent, SourceLabel } from '../domain/event';
 import { AppError, OAuthRevokedError } from '../errors';
 import { decodeJwtPayload } from '../lib/encoding';
 import type { CalendarSource, OAuthProvider } from '../ports';
@@ -59,12 +59,6 @@ export class GoogleCalendarSource implements CalendarSource {
     }));
   }
 
-  async getColorPalette(): Promise<ColorPalette> {
-    const res = await this.get<{ event?: Record<string, { background: string }> }>('/colors', { fields: 'event' });
-    const palette: ColorPalette = {};
-    for (const [id, c] of Object.entries(res.event ?? {})) palette[id] = c.background;
-    return palette;
-  }
 
   async listEvents(calendarId: string, from: number, to: number): Promise<SourceEvent[]> {
     const items = await this.paginate<GoogleEvent>(`/calendars/${encodeURIComponent(calendarId)}/events`, {

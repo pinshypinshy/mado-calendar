@@ -85,7 +85,7 @@ describe('運営者によるオーナーの管理', () => {
 
   test('オーナーを削除すると、そのオーナーのログインと、閲覧者の参加がすべて無効になる。ほかのオーナーには影響しない', async () => {
     const va = await setup(a, [FAKE_MAIN], [[FAKE_MAIN, 'label:lbl-shift', 'detail']]);
-    const vb = await setup(b, [FAKE_CLASS], [[FAKE_CLASS, 'color:5', 'busy']]);
+    const vb = await setup(b, [FAKE_CLASS], [[FAKE_CLASS, 'label:lbl-attend', 'busy']]);
     const viewer = new TestClient(ctx.app);
     await viewer.joinWith(va.code);
     await viewer.joinWith(vb.code);
@@ -186,7 +186,7 @@ describe('閲覧者が複数のオーナーに参加する（要件 4.1、4.6）
     await b.request('/api/admin/profile', { method: 'PUT', body: { displayName: '父' } });
     await a.request('/api/admin/profile', { method: 'PUT', body: { displayName: '山田' } });
     const va = await setup(a, [FAKE_MAIN], [[FAKE_MAIN, 'label:lbl-shift', 'detail']]);
-    const vb = await setup(b, [FAKE_CLASS], [[FAKE_CLASS, 'color:5', 'busy']]);
+    const vb = await setup(b, [FAKE_CLASS], [[FAKE_CLASS, 'label:lbl-attend', 'busy']]);
 
     const viewer = new TestClient(ctx.app);
     await viewer.joinWith(va.code);

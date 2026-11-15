@@ -72,7 +72,7 @@ async function setupStandard() {
   await setRule(v.id, FAKE_MAIN, 'label:lbl-shift', 'detail');
   await setRule(v.id, FAKE_MAIN, 'label:lbl-private', 'category');
   await setRule(v.id, FAKE_MAIN, 'label:lbl-clinic', 'detail');
-  await setRule(v.id, FAKE_CLASS, 'color:5', 'busy');
+  await setRule(v.id, FAKE_CLASS, 'label:lbl-attend', 'busy');
   return v;
 }
 
@@ -484,11 +484,11 @@ describe('管理画面', () => {
     expect((await client.request('/api/viewer/me')).status).toBe(401);
   });
 
-  test('ラベルの一覧：Google のラベル、colorId、ラベルなし', async () => {
+  test('ラベルの一覧：Google のラベルとラベルなし（colorId の行は出さない）', async () => {
     await admin.request('/api/admin/calendars', { method: 'PUT', body: { calendarIds: [FAKE_MAIN] } });
     const { body } = await admin.json<{ labelKey: string; categoryName: string }[]>('/api/admin/labels');
     expect(body.map((l) => l.labelKey)).toContain('label:lbl-shift');
-    expect(body.map((l) => l.labelKey)).toContain('color:11');
+    expect(body.some((l) => l.labelKey.startsWith('color:'))).toBe(false);
     expect(body.at(-1)).toMatchObject({ labelKey: 'none', categoryName: 'メイン（フェイク）' });
     // 名前が空欄のラベルはカレンダー名
     expect(body.find((l) => l.labelKey === 'label:lbl-lemon')?.categoryName).toBe('メイン（フェイク）');

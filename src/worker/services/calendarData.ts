@@ -2,7 +2,7 @@
 // 予定は「カレンダー × 月」の単位で5分間キャッシュする。閲覧者ごとの絞り込みはキャッシュから取り出したあとに行う。
 
 import { addMonths, jstDateOf, jstMidnight, startOfMonth } from '../../shared/time';
-import type { ColorPalette, SourceCalendar, SourceEvent, SourceLabel } from '../domain/event';
+import type { SourceCalendar, SourceEvent, SourceLabel } from '../domain/event';
 import { buildLabelCatalog, LabelDirectory, type LabelInfo } from '../domain/labels';
 import { overlapsWindow } from '../domain/period';
 import type { CacheRepository, CalendarSelectionRepository, CalendarSource, Clock, LabelNameRepository } from '../ports';
@@ -29,10 +29,6 @@ export class CalendarData {
     return this.cached('meta:calendars', () => this.d.source.listCalendars(), opts.force);
   }
 
-  palette(opts: FetchOptions = {}): Promise<ColorPalette> {
-    return this.cached('meta:palette', () => this.d.source.getColorPalette(), opts.force);
-  }
-
   labels(calendarId: string, opts: FetchOptions = {}): Promise<SourceLabel[]> {
     return this.cached(`meta:labels:${calendarId}`, () => this.d.source.listLabels(calendarId), opts.force);
   }
@@ -48,11 +44,8 @@ export class CalendarData {
   }
 
   async labelCatalog(calendars: SourceCalendar[], opts: FetchOptions = {}): Promise<LabelInfo[]> {
-    const [palette, labelLists] = await Promise.all([
-      this.palette(opts),
-      Promise.all(calendars.map((c) => this.labels(c.id, opts))),
-    ]);
-    return calendars.flatMap((c, i) => buildLabelCatalog(c, labelLists[i] ?? [], palette));
+    const labelLists = await Promise.all(calendars.map((c) => this.labels(c.id, opts)));
+    return calendars.flatMap((c, i) => buildLabelCatalog(c, labelLists[i] ?? []));
   }
 
   async labelDirectory(calendars: SourceCalendar[], opts: FetchOptions = {}): Promise<LabelDirectory> {

@@ -3,7 +3,7 @@
 // テストでは、時計・乱数・カレンダー・OAuth をフェイクに差し替える。
 
 import type { Level, OverrideLevel, PeriodLimit, WeekStart } from '../shared/api';
-import type { ColorPalette, SourceCalendar, SourceEvent, SourceLabel } from './domain/event';
+import type { SourceCalendar, SourceEvent, SourceLabel } from './domain/event';
 import type { LabelNameRow } from './domain/labels';
 import type { OverrideRow, RuleRow } from './domain/level';
 
@@ -32,7 +32,6 @@ export interface SecretBox {
 export interface CalendarSource {
   listCalendars(): Promise<SourceCalendar[]>;
   listLabels(calendarId: string): Promise<SourceLabel[]>;
-  getColorPalette(): Promise<ColorPalette>;
   /** [from, to) と重なる予定。繰り返し予定は回ごとに展開して返す */
   listEvents(calendarId: string, from: number, to: number): Promise<SourceEvent[]>;
 }

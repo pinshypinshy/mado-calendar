@@ -1,8 +1,6 @@
 // カレンダーから取り出した予定と、カレンダー・ラベルの情報。
 // Google の API の形に依存しない形に正規化したもの（変換は adapters/google 側で行う）。
 
-import type { LabelKind } from '../../shared/api';
-
 export interface SourceEvent {
   calendarId: string;
   /** 予定の ID。繰り返し予定では回ごとに異なる */
@@ -31,16 +29,12 @@ export interface SourceLabel {
   color: string;
 }
 
-/** colorId（"1"〜"11"）→ 色コード */
-export type ColorPalette = Record<string, string>;
-
 export const NO_LABEL_KEY = 'none';
-export const LEGACY_COLOR_IDS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'] as const;
 
 /**
  * 予定のラベルを表すキー。
- * eventLabelId が返る場合はそれを優先し、返らない場合は colorId を使う。
- * どちらが実際に返るかは未検証（要件 10章 #1）なので、両方に対応している。
+ * Google は予定の eventLabelId を返す（要件 10章 #1 で確認済み）。返らない予定に備えて colorId での判定も残す。
+ * colorId のキー（color:N）は管理画面に出さないので、表示ルールを設定できず、初期値の「非表示」になる。
  */
 export function labelKeyOf(e: Pick<SourceEvent, 'eventLabelId' | 'colorId'>): string {
   if (e.eventLabelId) return `label:${e.eventLabelId}`;
@@ -48,11 +42,6 @@ export function labelKeyOf(e: Pick<SourceEvent, 'eventLabelId' | 'colorId'>): st
   return NO_LABEL_KEY;
 }
 
-export function labelKindOf(labelKey: string): LabelKind {
-  if (labelKey.startsWith('label:')) return 'label';
-  if (labelKey.startsWith('color:')) return 'color';
-  return 'none';
-}
 
 /** 「シリーズ全体」の個別設定のキー */
 export function seriesKeyOf(e: Pick<SourceEvent, 'id' | 'recurringEventId'>): string {

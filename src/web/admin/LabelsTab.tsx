@@ -37,12 +37,6 @@ export function LabelsTab({ api }: { api: AdminApi }) {
           {[...g.labels, ...g.none].map((l) => (
             <LabelRow key={l.labelKey} label={l} onSave={save} />
           ))}
-          <details open={g.labels.length === 0}>
-            <summary className="muted small">colorId のラベル（予備）</summary>
-            {g.colors.map((l) => (
-              <LabelRow key={l.labelKey} label={l} onSave={save} />
-            ))}
-          </details>
         </div>
       ))}
     </section>

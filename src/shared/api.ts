@@ -162,10 +162,9 @@ export interface SelectCalendarsRequest {
 /**
  * ラベルの種類。
  * - label: Google のラベル（eventLabelId）
- * - color: 従来の colorId（1〜11）。eventLabelId が返らない場合の予備
  * - none: ラベルなし
  */
-export type LabelKind = 'label' | 'color' | 'none';
+export type LabelKind = 'label' | 'none';
 
 export interface AdminLabel {
   calendarId: string;

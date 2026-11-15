@@ -2,7 +2,7 @@
 // CALENDAR_SOURCE=fake のときだけ使い、localhost 以外では起動しない（index.ts で確認する）。
 
 import { addDays, type DateStr, jstDateOf, jstMidnight, splitDate, weekdayOf } from '../../shared/time';
-import type { ColorPalette, SourceCalendar, SourceEvent, SourceLabel } from '../domain/event';
+import type { SourceCalendar, SourceEvent, SourceLabel } from '../domain/event';
 import { overlapsWindow } from '../domain/period';
 import type { CalendarSource, OAuthProvider } from '../ports';
 import { CALENDAR_SCOPE } from './google';
@@ -10,21 +10,6 @@ import { CALENDAR_SCOPE } from './google';
 export const FAKE_MAIN = 'fake-main';
 export const FAKE_CLASS = 'fake-class';
 export const FAKE_OTHER = 'fake-other';
-
-/** Google カレンダーの画面で使われている11色 */
-export const FAKE_PALETTE: ColorPalette = {
-  '1': '#7986cb',
-  '2': '#33b679',
-  '3': '#8e24aa',
-  '4': '#e67c73',
-  '5': '#f6bf26',
-  '6': '#f4511e',
-  '7': '#039be5',
-  '8': '#616161',
-  '9': '#3f51b5',
-  '10': '#0b8043',
-  '11': '#d50000',
-};
 
 const CALENDARS: SourceCalendar[] = [
   { id: FAKE_MAIN, name: 'メイン（フェイク）', color: '#039be5' },
@@ -44,7 +29,10 @@ const LABELS: Record<string, SourceLabel[]> = {
     { id: 'lbl-deadline', name: '締め切り・メモ', color: '#0b8043' },
     { id: 'lbl-lemon', name: '', color: '#e4c441' },
   ],
-  [FAKE_CLASS]: [],
+  [FAKE_CLASS]: [
+    { id: 'lbl-attend', name: '出席あり', color: '#f6bf26' },
+    { id: 'lbl-noattend', name: '出席なし', color: '#e4c441' },
+  ],
   [FAKE_OTHER]: [],
 };
 
@@ -90,7 +78,7 @@ function templatesOn(date: DateStr): Template[] {
     t.push({ calendarId: main, id: 'lunch', title: 'ランチ', start: '12:00', end: '13:00' });
     t.push({ calendarId: main, id: 'prep', title: 'ゼミ準備', start: '12:30', end: '14:00', eventLabelId: 'lbl-lemon' });
   }
-  // eventLabelId がなく colorId だけの予定
+  // eventLabelId がなく colorId だけの予定（ラベル ID が返らない場合の判定を確かめるため）
   if (day === 3 || day === 12 || day === 21) {
     t.push({ calendarId: main, id: 'interview', title: '一次面接', start: '14:00', end: '15:00', colorId: '3' });
   }
@@ -106,12 +94,12 @@ function templatesOn(date: DateStr): Template[] {
   if (day === 24) {
     t.push({ calendarId: main, id: 'trip', title: '家族旅行', days: 3, eventLabelId: 'lbl-family', colorId: '9' });
   }
-  // 授業カレンダー（ラベルなし・colorId のみ）
+  // 授業カレンダー
   if (wd === 1 || wd === 3 || wd === 5) {
-    t.push({ calendarId: cls, series: 'c-info', id: 'c-info', title: '情報理論', start: '09:00', end: '10:40', colorId: '5' });
+    t.push({ calendarId: cls, series: 'c-info', id: 'c-info', title: '情報理論', start: '09:00', end: '10:40', eventLabelId: 'lbl-attend', colorId: '5' });
   }
   if (wd === 2) {
-    t.push({ calendarId: cls, series: 'c-db', id: 'c-db', title: 'データベース', start: '13:00', end: '14:40', colorId: '11' });
+    t.push({ calendarId: cls, series: 'c-db', id: 'c-db', title: 'データベース', start: '13:00', end: '14:40', eventLabelId: 'lbl-noattend', colorId: '11' });
   }
   // 対象外のカレンダー
   if (wd === 4) {
@@ -142,7 +130,7 @@ function materialize(date: DateStr, t: Template): SourceEvent {
 
 export class FakeCalendarSource implements CalendarSource {
   /** テストで、Google を何回呼んだかを数えるため */
-  calls = { listCalendars: 0, listLabels: 0, getColorPalette: 0, listEvents: 0 };
+  calls = { listCalendars: 0, listLabels: 0, listEvents: 0 };
 
   async listCalendars(): Promise<SourceCalendar[]> {
     this.calls.listCalendars++;
@@ -154,10 +142,6 @@ export class FakeCalendarSource implements CalendarSource {
     return (LABELS[calendarId] ?? []).map((l) => ({ ...l }));
   }
 
-  async getColorPalette(): Promise<ColorPalette> {
-    this.calls.getColorPalette++;
-    return { ...FAKE_PALETTE };
-  }
 
   async listEvents(calendarId: string, from: number, to: number): Promise<SourceEvent[]> {
     this.calls.listEvents++;

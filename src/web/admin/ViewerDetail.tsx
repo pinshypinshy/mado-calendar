@@ -318,10 +318,6 @@ function RulesEditor({
           <h4>{g.calendar.name}</h4>
           {g.labels.map(row)}
           {g.none.map(row)}
-          <details open={g.labels.length === 0}>
-            <summary className="muted small">colorId のラベル（予備。Google がラベル ID を返さない予定に使う）</summary>
-            {g.colors.map(row)}
-          </details>
         </div>
       ))}
     </div>

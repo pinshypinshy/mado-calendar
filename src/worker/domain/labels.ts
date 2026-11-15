@@ -1,13 +1,7 @@
 // ラベルの一覧とカテゴリ名・色の決め方（要件 3.4）。
 
 import type { LabelKind } from '../../shared/api';
-import {
-  LEGACY_COLOR_IDS,
-  NO_LABEL_KEY,
-  type ColorPalette,
-  type SourceCalendar,
-  type SourceLabel,
-} from './event';
+import { NO_LABEL_KEY, type SourceCalendar, type SourceLabel } from './event';
 
 export interface LabelInfo {
   calendarId: string;
@@ -17,36 +11,20 @@ export interface LabelInfo {
   color: string;
 }
 
-/** カレンダー1つ分のラベルの一覧。Google のラベル、従来の colorId、ラベルなし の順 */
-export function buildLabelCatalog(
-  calendar: SourceCalendar,
-  labels: SourceLabel[],
-  palette: ColorPalette,
-): LabelInfo[] {
-  const result: LabelInfo[] = labels.map((l) => ({
-    calendarId: calendar.id,
-    labelKey: `label:${l.id}`,
-    kind: 'label',
-    sourceName: l.name,
-    color: l.color,
-  }));
-  for (const id of LEGACY_COLOR_IDS) {
-    result.push({
-      calendarId: calendar.id,
-      labelKey: `color:${id}`,
-      kind: 'color',
-      sourceName: '',
-      color: palette[id] ?? calendar.color,
-    });
-  }
-  result.push({
-    calendarId: calendar.id,
-    labelKey: NO_LABEL_KEY,
-    kind: 'none',
-    sourceName: '',
-    color: calendar.color,
-  });
-  return result;
+/** カレンダー1つ分のラベルの一覧。Google のラベル、ラベルなし の順 */
+export function buildLabelCatalog(calendar: SourceCalendar, labels: SourceLabel[]): LabelInfo[] {
+  return [
+    ...labels.map(
+      (l): LabelInfo => ({
+        calendarId: calendar.id,
+        labelKey: `label:${l.id}`,
+        kind: 'label',
+        sourceName: l.name,
+        color: l.color,
+      }),
+    ),
+    { calendarId: calendar.id, labelKey: NO_LABEL_KEY, kind: 'none', sourceName: '', color: calendar.color },
+  ];
 }
 
 /** 表示名の上書き1件（全員共通と閲覧者ごとで同じ形） */

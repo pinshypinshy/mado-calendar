@@ -26,10 +26,9 @@ describe('カテゴリ名の決め方', () => {
 });
 
 describe('LabelDirectory', () => {
-  const catalog = buildLabelCatalog(cal, [{ id: 'L1', name: 'アルバイト', color: '#123456' }], { '7': '#039be5' });
-  test('カタログ：ラベル1件 + colorId 11件 + ラベルなし', () => {
-    expect(catalog).toHaveLength(13);
-    expect(catalog.at(-1)?.labelKey).toBe('none');
+  const catalog = buildLabelCatalog(cal, [{ id: 'L1', name: 'アルバイト', color: '#123456' }]);
+  test('カタログ：Google のラベル + ラベルなし（colorId の行は作らない）', () => {
+    expect(catalog.map((l) => l.labelKey)).toEqual(['label:L1', 'none']);
   });
   test('ラベルの名前と色を使う', () => {
     const dir = new LabelDirectory([cal], catalog, []);
@@ -39,7 +38,7 @@ describe('LabelDirectory', () => {
     const dir = new LabelDirectory([cal], catalog, [{ calendarId: 'c1', labelKey: 'label:L1', displayName: 'バイト' }]);
     expect(dir.describe('c1', 'label:L1').categoryName).toBe('バイト');
   });
-  test('colorId のラベルは名前がないのでカレンダー名、色はパレット', () => {
+  test('colorId だけの予定は、カレンダーの名前と色', () => {
     const dir = new LabelDirectory([cal], catalog, []);
     expect(dir.describe('c1', 'color:7')).toEqual({ categoryName: 'メイン', color: '#039be5' });
   });
