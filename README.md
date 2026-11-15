@@ -36,7 +36,7 @@ npm run typecheck   # Worker・画面・テストの型チェック
    - Google Calendar API を有効にする
    - OAuth 同意画面を作り、公開ステータスを「本番（In production）」にする（テスト中のままだと、リフレッシュトークンが7日で失効する）
    - OAuth クライアント（種類は「ウェブ アプリケーション」）を作り、承認済みのリダイレクト URI に `http://localhost:5173/auth/callback` と `https://mado-cal.yuki-hiraishi.com/auth/callback` を加える
-2. `.dev.vars` を次のようにする。
+2. `.dev.vars` を次のようにする。ダウンロードした JSON から設定するなら `node scripts/set-google-dev-vars.mjs <JSON のパス> <運営者の Google アカウント>` で済む（シークレットは画面に出ない）。
 
    ```sh
    CALENDAR_SOURCE=google
@@ -45,7 +45,7 @@ npm run typecheck   # Worker・画面・テストの型チェック
    GOOGLE_CLIENT_SECRET=<クライアント シークレット>
    ```
 
-3. `npm run dev -- --port 5173 --strictPort` で起動し、管理画面からログインする（リダイレクト URI と合わせるため、ポートを固定する）。
+3. `npm run dev -- --port 5173 --strictPort` で起動し、管理画面からログインする（リダイレクト URI と合わせるため、ポートを固定する。5173 が使用中なら 5180 を使い、`http://localhost:5180/auth/callback` もリダイレクト URI に加えておく）。
 
 ## 本番にデプロイする
 
