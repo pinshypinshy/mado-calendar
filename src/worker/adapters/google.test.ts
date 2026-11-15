@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { AppError, OAuthRevokedError } from '../errors';
 import { base64url } from '../lib/encoding';
 import { GoogleCalendarSource, GoogleOAuthProvider, normalizeGoogleEvent } from './google';
@@ -142,5 +142,30 @@ describe('GoogleOAuthProvider', () => {
   test('リフレッシュトークンが失効していたら OAuthRevokedError', async () => {
     const { fn } = fakeFetch(() => ({ error: 'invalid_grant' }), 400);
     await expect(new GoogleOAuthProvider('cid', 'sec', fn).refresh('rt')).rejects.toBeInstanceOf(OAuthRevokedError);
+  });
+});
+
+describe('既定の fetch の呼び方', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // Workers では、グローバルの fetch を別のオブジェクトのメソッドとして呼ぶと Illegal invocation になる。
+  // Node ではこのエラーが起きないので、this を確かめる偽の fetch で同じ条件を作る。
+  function strictFetch(body: unknown) {
+    return function (this: unknown) {
+      if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation');
+      return Promise.resolve(new Response(JSON.stringify(body)));
+    };
+  }
+
+  test('GoogleOAuthProvider', async () => {
+    vi.stubGlobal('fetch', strictFetch({ error: 'invalid_grant' }));
+    await expect(new GoogleOAuthProvider('cid', 'sec').refresh('rt')).resolves.toBeDefined();
+  });
+
+  test('GoogleCalendarSource', async () => {
+    vi.stubGlobal('fetch', strictFetch({ items: [] }));
+    await expect(new GoogleCalendarSource(async () => 't').listCalendars()).resolves.toEqual([]);
   });
 });

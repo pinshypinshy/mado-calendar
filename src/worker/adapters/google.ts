@@ -22,10 +22,17 @@ const MAX_PAGES = 4;
 
 type Fetch = typeof fetch;
 
+/**
+ * 既定の fetch。グローバルの fetch をそのまま持たせて this.fetcher(...) で呼ぶと、
+ * Workers では this が違うとして「Illegal invocation」になるため、関数で包んで呼ぶ。
+ * https://developers.cloudflare.com/workers/observability/errors/#illegal-invocation-errors
+ */
+const globalFetch: Fetch = (input, init) => fetch(input, init);
+
 export class GoogleCalendarSource implements CalendarSource {
   constructor(
     private readonly accessToken: () => Promise<string>,
-    private readonly fetcher: Fetch = fetch,
+    private readonly fetcher: Fetch = globalFetch,
   ) {}
 
   async listCalendars(): Promise<SourceCalendar[]> {
@@ -140,7 +147,7 @@ export class GoogleOAuthProvider implements OAuthProvider {
   constructor(
     private readonly clientId: string,
     private readonly clientSecret: string,
-    private readonly fetcher: Fetch = fetch,
+    private readonly fetcher: Fetch = globalFetch,
   ) {}
 
   authorizationUrl(p: {
