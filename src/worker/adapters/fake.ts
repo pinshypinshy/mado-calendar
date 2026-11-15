@@ -101,6 +101,14 @@ function templatesOn(date: DateStr): Template[] {
   if (wd === 2) {
     t.push({ calendarId: cls, series: 'c-db', id: 'c-db', title: 'データベース', start: '13:00', end: '14:40', eventLabelId: 'lbl-noattend', colorId: '11' });
   }
+  // 予定の多い日（月表示で、マスに入りきらないときの「+N」を確かめるため）
+  if (day === 10) {
+    const labels = ['lbl-job', 'lbl-private', 'lbl-friends', 'lbl-other'];
+    for (let i = 0; i < 9; i++) {
+      const h = String(8 + i).padStart(2, '0');
+      t.push({ calendarId: main, id: `busy${i + 1}`, title: `用事${i + 1}`, start: `${h}:00`, end: `${h}:30`, eventLabelId: labels[i % labels.length] });
+    }
+  }
   // 対象外のカレンダー
   if (wd === 4) {
     t.push({ calendarId: FAKE_OTHER, id: 'other', title: '共有の予定', start: '10:00', end: '11:00' });
