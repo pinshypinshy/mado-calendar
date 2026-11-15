@@ -52,8 +52,6 @@ export interface ViewerMe {
 
 export interface EventsResponse {
   events: ViewerEvent[];
-  /** 更新ボタンの間隔制限にかかったとき、次に更新できるまでの秒数 */
-  refreshRetryAfter: number | null;
 }
 
 export interface JoinRequest {

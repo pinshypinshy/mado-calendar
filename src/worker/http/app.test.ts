@@ -344,19 +344,22 @@ describe('キャッシュと更新ボタン', () => {
     expect(ctx.source.calls.listEvents).toBe(first + 2);
   });
 
-  test('更新ボタンはキャッシュを使わない。30秒以内の2回目は間隔制限にかかる', async () => {
+  test('更新ボタンはキャッシュを使わない。5秒以内の2回目は、知らせずにキャッシュを返す', async () => {
     const v = await setupStandard();
     const client = await joinAs(v.code);
     await client.request(WEEK);
     const before = ctx.source.calls.listEvents;
-    const r1 = await client.json<EventsResponse>(`${WEEK}&refresh=1`);
-    expect(r1.body.refreshRetryAfter).toBeNull();
+    await client.request(`${WEEK}&refresh=1`);
     expect(ctx.source.calls.listEvents).toBe(before + 2);
-    ctx.clock.advance(10 * 1000);
+    ctx.clock.advance(4 * 1000);
     const r2 = await client.json<EventsResponse>(`${WEEK}&refresh=1`);
-    expect(r2.body.refreshRetryAfter).toBe(20);
-    expect(ctx.source.calls.listEvents).toBe(before + 2);
+    expect(r2.status).toBe(200);
+    expect(r2.body).toEqual({ events: expect.any(Array) });
     expect(r2.body.events).toHaveLength(7);
+    expect(ctx.source.calls.listEvents).toBe(before + 2);
+    ctx.clock.advance(1000);
+    await client.request(`${WEEK}&refresh=1`);
+    expect(ctx.source.calls.listEvents).toBe(before + 4);
   });
 });
 

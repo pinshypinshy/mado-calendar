@@ -85,8 +85,7 @@ export function CalendarScreen({ feed, now = Date.now }: CalendarScreenProps) {
         if (seq !== requestSeq.current) return; // 古い応答は捨てる
         setEvents(res.events);
         setError(null);
-        if (res.refreshRetryAfter !== null) setNotice(`更新は、あと${res.refreshRetryAfter}秒たってからできます`);
-        else if (refresh) setNotice('最新の予定を読み込みました');
+        if (refresh) setNotice('最新の予定を読み込みました');
       } catch (e) {
         if (seq === requestSeq.current) setError(errorMessage(e));
       } finally {

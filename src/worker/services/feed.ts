@@ -10,8 +10,11 @@ import { AppError } from '../errors';
 import type { Clock, Repositories, ViewerRecord } from '../ports';
 import type { CalendarData } from './calendarData';
 
-/** 更新ボタンの間隔制限（要件 6章） */
-export const FORCE_REFRESH_INTERVAL_MS = 30 * 1000;
+/**
+ * 更新ボタンの間隔制限（要件 6章）。
+ * 画面では読み込み中にボタンを押せなくして連打を防いでいる。これは API を直接呼ばれた場合の保険。
+ */
+export const FORCE_REFRESH_INTERVAL_MS = 5 * 1000;
 /** 1回に取得できる期間の上限。月表示（最大6週）が収まる長さにする */
 export const MAX_RANGE_DAYS = 62;
 
@@ -58,15 +61,14 @@ export class FeedService {
 
     const window = boundsToWindow(allowedDateBounds(viewer.period, jstDateOf(now)));
     const range = clampRange({ from: jstMidnight(from), to: jstMidnight(to) }, window);
-    if (!range) return { events: [], refreshRetryAfter: null };
+    if (!range) return { events: [] };
 
+    // 間隔制限にかかったときは、知らせずにキャッシュを返す（直前に取り直したばかりなので、中身はほぼ最新）
     let force = false;
-    let refreshRetryAfter: number | null = null;
     if (opts.forceRefresh) {
       const last = viewer.lastForcedRefreshAt;
-      if (opts.throttle !== false && last !== null && now - last < FORCE_REFRESH_INTERVAL_MS) {
-        refreshRetryAfter = Math.ceil((FORCE_REFRESH_INTERVAL_MS - (now - last)) / 1000);
-      } else {
+      const throttled = opts.throttle !== false && last !== null && now - last < FORCE_REFRESH_INTERVAL_MS;
+      if (!throttled) {
         force = true;
         if (opts.throttle !== false) await this.d.repos.viewers.update(viewer.id, { lastForcedRefreshAt: now });
       }
@@ -93,7 +95,7 @@ export class FeedService {
       const v = presentForViewer(e, level, directory.describe(e.calendarId, labelKeyOf(e)), `e${result.length}`);
       if (v) result.push(v);
     }
-    return { events: result, refreshRetryAfter };
+    return { events: result };
   }
 }
 
