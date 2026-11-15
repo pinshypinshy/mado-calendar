@@ -5,6 +5,7 @@ import type {
   AdminEvent,
   AdminEventsResponse,
   AdminLabel,
+  AdminViewerLabel,
   OverrideLevel,
   RenameLabelRequest,
   SetOverrideRequest,
@@ -20,7 +21,10 @@ import type { Clock, Repositories } from '../ports';
 import type { CalendarData } from './calendarData';
 
 export interface AdminCalendarDeps {
-  repos: Pick<Repositories, 'viewers' | 'rules' | 'overrides' | 'calendarSelection' | 'labelNames' | 'cache'>;
+  repos: Pick<
+    Repositories,
+    'viewers' | 'rules' | 'overrides' | 'calendarSelection' | 'labelNames' | 'viewerLabelNames' | 'cache'
+  >;
   data: CalendarData;
   clock: Clock;
 }
@@ -55,16 +59,46 @@ export class AdminCalendarService {
         kind: l.kind,
         sourceName: l.sourceName,
         displayName,
-        categoryName: categoryNameOf(displayName, l.sourceName, calendarName.get(l.calendarId) ?? ''),
+        categoryName: categoryNameOf({
+          globalName: displayName,
+          sourceName: l.sourceName,
+          calendarName: calendarName.get(l.calendarId) ?? '',
+        }),
         color: l.color,
       };
     });
   }
 
   async renameLabel(req: RenameLabelRequest): Promise<void> {
-    const name = req.displayName === null ? null : req.displayName.trim();
-    if (name !== null && name.length > 50) throw new AppError('bad_request', '表示名は50文字以内で入力してください');
-    await this.d.repos.labelNames.set(req.calendarId, req.labelKey, name === '' ? null : name);
+    await this.d.repos.labelNames.set(req.calendarId, req.labelKey, normalizeDisplayName(req.displayName));
+  }
+
+  /** 閲覧者1人から見たラベルの一覧。閲覧者ごとの上書きと、その閲覧者に見せるカテゴリ名を付ける */
+  async viewerLabels(viewerId: string): Promise<AdminViewerLabel[]> {
+    await this.requireViewer(viewerId);
+    const calendars = await this.d.data.selectedCalendars();
+    const [labels, names, directory] = await Promise.all([
+      this.labels(),
+      this.d.repos.viewerLabelNames.listForViewer(viewerId),
+      this.d.data.labelDirectory(calendars),
+    ]);
+    // 閲覧画面と同じ LabelDirectory で決めることで、管理画面の表示と閲覧者に見える名前を食い違わせない
+    const forViewer = directory.withViewerNames(names);
+    const nameMap = new Map(names.map((n) => [`${n.calendarId}\u0000${n.labelKey}`, n.displayName]));
+    return labels.map((l) => ({
+      ...l,
+      viewerDisplayName: nameMap.get(`${l.calendarId}\u0000${l.labelKey}`) ?? null,
+      viewerCategoryName: forViewer.describe(l.calendarId, l.labelKey).categoryName,
+    }));
+  }
+
+  async renameLabelForViewer(viewerId: string, req: RenameLabelRequest): Promise<void> {
+    await this.requireViewer(viewerId);
+    await this.d.repos.viewerLabelNames.set(viewerId, req.calendarId, req.labelKey, normalizeDisplayName(req.displayName));
+  }
+
+  private async requireViewer(viewerId: string): Promise<void> {
+    if (!(await this.d.repos.viewers.get(viewerId))) throw new AppError('not_found', '閲覧者が見つかりません');
   }
 
   /** 管理画面の予定一覧。閲覧者ごとの個別設定と、実際の表示レベルを付ける */
@@ -142,4 +176,11 @@ export class AdminCalendarService {
   async clearCache(): Promise<void> {
     await this.d.repos.cache.deleteAll();
   }
+}
+
+/** 表示名の上書きの入力を整える。空欄なら null（上書きを消す） */
+function normalizeDisplayName(displayName: string | null): string | null {
+  const name = displayName === null ? null : displayName.trim();
+  if (name !== null && name.length > 50) throw new AppError('bad_request', '表示名は50文字以内で入力してください');
+  return name === '' ? null : name;
 }

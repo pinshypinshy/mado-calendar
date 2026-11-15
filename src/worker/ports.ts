@@ -4,6 +4,7 @@
 
 import type { Level, OverrideLevel, PeriodLimit, WeekStart } from '../shared/api';
 import type { ColorPalette, SourceCalendar, SourceEvent, SourceLabel } from './domain/event';
+import type { LabelNameRow } from './domain/labels';
 import type { OverrideRow, RuleRow } from './domain/level';
 
 // ---- 実行環境 ----
@@ -95,7 +96,7 @@ export interface ViewerRepository {
   findByCodeHash(codeHash: string): Promise<ViewerRecord | null>;
   insert(v: ViewerRecord): Promise<void>;
   update(id: string, patch: ViewerPatch): Promise<void>;
-  /** 表示ルール・個別設定・セッションも消す */
+  /** 表示ルール・個別設定・カテゴリ名の上書き・セッションも消す */
   delete(id: string): Promise<void>;
 }
 
@@ -148,10 +149,19 @@ export interface CalendarSelectionRepository {
   replace(calendarIds: string[]): Promise<void>;
 }
 
+/** 全員共通のカテゴリ名の上書き */
 export interface LabelNameRepository {
-  list(): Promise<{ calendarId: string; labelKey: string; displayName: string }[]>;
+  list(): Promise<LabelNameRow[]>;
   /** displayName が null なら上書きを消す */
   set(calendarId: string, labelKey: string, displayName: string | null): Promise<void>;
+}
+
+/** 閲覧者ごとのカテゴリ名の上書き */
+export interface ViewerLabelNameRepository {
+  listForViewer(viewerId: string): Promise<LabelNameRow[]>;
+  /** displayName が null なら上書きを消す */
+  set(viewerId: string, calendarId: string, labelKey: string, displayName: string | null): Promise<void>;
+  replaceAll(viewerId: string, rows: LabelNameRow[]): Promise<void>;
 }
 
 export interface StoredToken {
@@ -193,6 +203,7 @@ export interface Repositories {
   adminSessions: AdminSessionRepository;
   calendarSelection: CalendarSelectionRepository;
   labelNames: LabelNameRepository;
+  viewerLabelNames: ViewerLabelNameRepository;
   tokens: TokenRepository;
   cache: CacheRepository;
   joinFailures: JoinFailureRepository;

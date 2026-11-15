@@ -1,16 +1,16 @@
 import type { AdminCalendar, AdminLabel } from '../../shared/api';
 
-export interface LabelGroup {
+export interface LabelGroup<L extends AdminLabel = AdminLabel> {
   calendar: AdminCalendar;
   /** Google のラベル */
-  labels: AdminLabel[];
+  labels: L[];
   /** 従来の colorId（eventLabelId が返らない場合の予備） */
-  colors: AdminLabel[];
+  colors: L[];
   /** ラベルなし */
-  none: AdminLabel[];
+  none: L[];
 }
 
-export function groupLabels(labels: AdminLabel[], calendars: AdminCalendar[]): LabelGroup[] {
+export function groupLabels<L extends AdminLabel>(labels: L[], calendars: AdminCalendar[]): LabelGroup<L>[] {
   return calendars
     .filter((c) => c.selected)
     .map((calendar) => {

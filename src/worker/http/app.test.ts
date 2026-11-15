@@ -3,7 +3,14 @@
 // 時刻は 2026-11-16（月）12:00 JST に固定。フェイクの予定は adapters/fake.ts の templatesOn を参照。
 
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
-import type { AdminEventsResponse, AdminViewerDetail, EventsResponse, ViewerEvent, ViewerMe } from '../../shared/api';
+import type {
+  AdminEventsResponse,
+  AdminViewerDetail,
+  AdminViewerLabel,
+  EventsResponse,
+  ViewerEvent,
+  ViewerMe,
+} from '../../shared/api';
 import { FakeOAuthProvider, FAKE_CLASS, FAKE_MAIN } from '../adapters/fake';
 import { createTestContext, createTestDb, TestClient, type TestContext, type TestDb } from '../testing/harness';
 
@@ -298,6 +305,56 @@ describe('表示判定', () => {
     expect(titles(body.events)[0]).toBe('[おでかけ]');
   });
 
+  test('閲覧者ごとのカテゴリ名は、その閲覧者だけに効き、全員共通の上書きより優先する', async () => {
+    const v = await setupStandard();
+    const parent = await createViewer('父');
+    await setRule(parent.id, FAKE_MAIN, 'label:lbl-private', 'category');
+    await admin.request('/api/admin/labels', {
+      method: 'PUT',
+      body: { calendarId: FAKE_MAIN, labelKey: 'label:lbl-private', displayName: 'お出かけ' },
+    });
+    const res = await admin.json<AdminViewerLabel[]>(`/api/admin/viewers/${v.id}/labels`, {
+      method: 'PUT',
+      body: { calendarId: FAKE_MAIN, labelKey: 'label:lbl-private', displayName: ' 遊び ' },
+    });
+    expect(res.body.find((l) => l.labelKey === 'label:lbl-private')).toMatchObject({
+      displayName: 'お出かけ',
+      categoryName: 'お出かけ',
+      viewerDisplayName: '遊び',
+      viewerCategoryName: '遊び',
+    });
+    const a = await joinAs(v.code);
+    const b = await joinAs(parent.code);
+    expect(titles((await a.json<EventsResponse>(WEEK)).body.events)[0]).toBe('[遊び]');
+    expect(titles((await b.json<EventsResponse>(WEEK)).body.events)[0]).toBe('[お出かけ]');
+  });
+
+  test('閲覧者ごとのカテゴリ名を空欄にすると、全員共通の名前に戻る', async () => {
+    const v = await setupStandard();
+    const put = (displayName: string | null) =>
+      admin.json<AdminViewerLabel[]>(`/api/admin/viewers/${v.id}/labels`, {
+        method: 'PUT',
+        body: { calendarId: FAKE_MAIN, labelKey: 'label:lbl-private', displayName },
+      });
+    await put('遊び');
+    const res = await put('');
+    expect(res.body.find((l) => l.labelKey === 'label:lbl-private')).toMatchObject({
+      viewerDisplayName: null,
+      viewerCategoryName: 'プライベートの予定',
+    });
+    const client = await joinAs(v.code);
+    expect(titles((await client.json<EventsResponse>(WEEK)).body.events)[0]).toBe('[プライベートの予定]');
+  });
+
+  test('閲覧者ごとのカテゴリ名は50文字まで', async () => {
+    const v = await setupStandard();
+    const res = await admin.request(`/api/admin/viewers/${v.id}/labels`, {
+      method: 'PUT',
+      body: { calendarId: FAKE_MAIN, labelKey: 'label:lbl-private', displayName: 'あ'.repeat(51) },
+    });
+    expect(res.status).toBe(400);
+  });
+
   test('期間制限：範囲外の予定は返さない', async () => {
     const v = await setupStandard();
     // 過去は制限なし、未来は0か月（今日まで）
@@ -383,9 +440,13 @@ describe('管理画面', () => {
     expect(shift?.viewers).toEqual([{ viewerId: v.id, instanceLevel: null, seriesLevel: 'busy', effective: 'busy' }]);
   });
 
-  test('設定のコピー', async () => {
+  test('設定のコピー（閲覧者ごとのカテゴリ名を含む）', async () => {
     const v = await setupStandard();
     await setOverride(v.id, FAKE_MAIN, 'shift', 'busy');
+    await admin.request(`/api/admin/viewers/${v.id}/labels`, {
+      method: 'PUT',
+      body: { calendarId: FAKE_MAIN, labelKey: 'label:lbl-private', displayName: '遊び' },
+    });
     await admin.request(`/api/admin/viewers/${v.id}`, {
       method: 'PATCH',
       body: { defaultWeekStart: 1, period: { enabled: true, pastMonths: 1, futureMonths: 3 } },
@@ -402,6 +463,8 @@ describe('管理画面', () => {
     });
     const rules = await admin.json<unknown[]>(`/api/admin/viewers/${other.id}/rules`);
     expect(rules.body).toHaveLength(4);
+    const labels = await admin.json<AdminViewerLabel[]>(`/api/admin/viewers/${other.id}/labels`);
+    expect(labels.body.find((l) => l.labelKey === 'label:lbl-private')?.viewerDisplayName).toBe('遊び');
     const a = await admin.json<EventsResponse>(`/api/admin/viewers/${v.id}/preview/events?from=2026-11-15&to=2026-11-22`);
     const b = await admin.json<EventsResponse>(
       `/api/admin/viewers/${other.id}/preview/events?from=2026-11-15&to=2026-11-22`,

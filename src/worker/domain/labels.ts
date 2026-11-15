@@ -49,20 +49,30 @@ export function buildLabelCatalog(
   return result;
 }
 
+/** 表示名の上書き1件（全員共通と閲覧者ごとで同じ形） */
+export interface LabelNameRow {
+  calendarId: string;
+  labelKey: string;
+  displayName: string;
+}
+
 /**
- * カテゴリ名の決め方：
- * 1. 管理画面で上書きした表示名
- * 2. ラベルの名前
- * 3. ラベルの名前が空欄、またはラベルなしの場合は、カレンダーの名前
+ * カテゴリ名の決め方（要件 3.4）：
+ * 1. 閲覧者ごとに上書きした表示名
+ * 2. 全員共通で上書きした表示名
+ * 3. ラベルの名前
+ * 4. ラベルの名前が空欄、またはラベルなしの場合は、カレンダーの名前
  */
-export function categoryNameOf(
-  displayName: string | null | undefined,
-  sourceName: string,
-  calendarName: string,
-): string {
-  if (displayName && displayName.trim() !== '') return displayName.trim();
-  if (sourceName.trim() !== '') return sourceName.trim();
-  return calendarName;
+export function categoryNameOf(p: {
+  viewerName?: string | null | undefined;
+  globalName?: string | null | undefined;
+  sourceName: string;
+  calendarName: string;
+}): string {
+  for (const name of [p.viewerName, p.globalName, p.sourceName]) {
+    if (name && name.trim() !== '') return name.trim();
+  }
+  return p.calendarName;
 }
 
 export interface LabelAppearance {
@@ -74,31 +84,43 @@ export interface LabelAppearance {
 export class LabelDirectory {
   private readonly calendars = new Map<string, SourceCalendar>();
   private readonly labels = new Map<string, LabelInfo>();
-  private readonly displayNames = new Map<string, string>();
+  private readonly globalNames = new Map<string, string>();
+  private readonly viewerNames = new Map<string, string>();
 
+  /**
+   * @param globalNames 全員共通の上書き
+   * @param viewerNames 閲覧者ごとの上書き。閲覧者を決めずに使う場合（管理画面の予定一覧など）は空
+   */
   constructor(
-    calendars: SourceCalendar[],
-    catalog: LabelInfo[],
-    displayNames: { calendarId: string; labelKey: string; displayName: string }[],
+    private readonly sourceCalendars: SourceCalendar[],
+    private readonly catalog: LabelInfo[],
+    private readonly globalNameRows: LabelNameRow[],
+    viewerNames: LabelNameRow[] = [],
   ) {
-    for (const c of calendars) this.calendars.set(c.id, c);
+    for (const c of sourceCalendars) this.calendars.set(c.id, c);
     for (const l of catalog) this.labels.set(key(l.calendarId, l.labelKey), l);
-    for (const d of displayNames) this.displayNames.set(key(d.calendarId, d.labelKey), d.displayName);
+    for (const d of globalNameRows) this.globalNames.set(key(d.calendarId, d.labelKey), d.displayName);
+    for (const d of viewerNames) this.viewerNames.set(key(d.calendarId, d.labelKey), d.displayName);
+  }
+
+  /** 閲覧者ごとの上書きを加えた LabelDirectory を返す（このインスタンスは変えない） */
+  withViewerNames(viewerNames: LabelNameRow[]): LabelDirectory {
+    return new LabelDirectory(this.sourceCalendars, this.catalog, this.globalNameRows, viewerNames);
   }
 
   describe(calendarId: string, labelKey: string): LabelAppearance {
     const calendar = this.calendars.get(calendarId);
-    const calendarName = calendar?.name ?? '';
-    const calendarColor = calendar?.color ?? '#9e9e9e';
-    const info = this.labels.get(key(calendarId, labelKey));
-    const displayName = this.displayNames.get(key(calendarId, labelKey));
-    if (!info) {
-      // カタログにないラベル（削除されたラベルなど）はラベルなしと同じ見せ方にする
-      return { categoryName: categoryNameOf(displayName, '', calendarName), color: calendarColor };
-    }
+    const k = key(calendarId, labelKey);
+    const info = this.labels.get(k);
     return {
-      categoryName: categoryNameOf(displayName, info.sourceName, calendarName),
-      color: info.color,
+      categoryName: categoryNameOf({
+        viewerName: this.viewerNames.get(k),
+        globalName: this.globalNames.get(k),
+        // カタログにないラベル（削除されたラベルなど）はラベルなしと同じ見せ方にする
+        sourceName: info?.sourceName ?? '',
+        calendarName: calendar?.name ?? '',
+      }),
+      color: info?.color ?? calendar?.color ?? '#9e9e9e',
     };
   }
 

@@ -166,13 +166,7 @@ export function createApp(s: Services): Hono<Env> {
 
   admin.get('/labels', async (c) => c.json(await s.adminCalendar.labels()));
   admin.put('/labels', async (c) => {
-    const body = await readJson<RenameLabelRequest>(c);
-    requireStrings(body, ['calendarId', 'labelKey']);
-    const displayName = body.displayName ?? null;
-    if (displayName !== null && typeof displayName !== 'string') {
-      throw new AppError('bad_request', 'displayName は文字列か null です');
-    }
-    await s.adminCalendar.renameLabel({ calendarId: body.calendarId, labelKey: body.labelKey, displayName });
+    await s.adminCalendar.renameLabel(await readRenameLabel(c));
     return c.json(await s.adminCalendar.labels());
   });
 
@@ -206,6 +200,12 @@ export function createApp(s: Services): Hono<Env> {
     return c.json(await s.adminViewers.get(c.req.param('id'), origin(c)));
   });
   admin.get('/viewers/:id/rules', async (c) => c.json(await s.adminViewers.rules(c.req.param('id'))));
+  // 閲覧者ごとのカテゴリ名の上書き
+  admin.get('/viewers/:id/labels', async (c) => c.json(await s.adminCalendar.viewerLabels(c.req.param('id'))));
+  admin.put('/viewers/:id/labels', async (c) => {
+    await s.adminCalendar.renameLabelForViewer(c.req.param('id'), await readRenameLabel(c));
+    return c.json(await s.adminCalendar.viewerLabels(c.req.param('id')));
+  });
   admin.put('/viewers/:id/rules', async (c) => {
     const body = await readJson<SetRuleRequest>(c);
     requireStrings(body, ['calendarId', 'labelKey', 'level']);
@@ -292,6 +292,16 @@ async function readJson<T>(c: Context): Promise<Partial<T>> {
   } catch {
     throw new AppError('bad_request', 'リクエストの本文が JSON のオブジェクトではありません');
   }
+}
+
+async function readRenameLabel(c: Context): Promise<RenameLabelRequest> {
+  const body = await readJson<RenameLabelRequest>(c);
+  requireStrings(body, ['calendarId', 'labelKey']);
+  const displayName = body.displayName ?? null;
+  if (displayName !== null && typeof displayName !== 'string') {
+    throw new AppError('bad_request', 'displayName は文字列か null です');
+  }
+  return { calendarId: body.calendarId, labelKey: body.labelKey, displayName };
 }
 
 function requireStrings<T, K extends keyof T>(body: Partial<T>, keys: K[]): asserts body is Partial<T> & Pick<T, K> {

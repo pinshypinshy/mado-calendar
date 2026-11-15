@@ -11,11 +11,17 @@ test('labelKeyOf', () => {
 });
 
 describe('カテゴリ名の決め方', () => {
-  test('上書き → ラベル名 → カレンダー名', () => {
-    expect(categoryNameOf('バイト', 'アルバイト', 'メイン')).toBe('バイト');
-    expect(categoryNameOf(null, 'アルバイト', 'メイン')).toBe('アルバイト');
-    expect(categoryNameOf(null, '', 'メイン')).toBe('メイン');
-    expect(categoryNameOf('  ', ' ', 'メイン')).toBe('メイン');
+  const name = (viewerName: string | null, globalName: string | null, sourceName: string) =>
+    categoryNameOf({ viewerName, globalName, sourceName, calendarName: 'メイン' });
+  test('閲覧者ごとの上書き → 全員共通の上書き → ラベル名 → カレンダー名', () => {
+    expect(name('シフト', 'バイト', 'アルバイト')).toBe('シフト');
+    expect(name(null, 'バイト', 'アルバイト')).toBe('バイト');
+    expect(name(null, null, 'アルバイト')).toBe('アルバイト');
+    expect(name(null, null, '')).toBe('メイン');
+  });
+  test('空白だけの上書きは、ないものとして扱う', () => {
+    expect(name('  ', ' ', ' ')).toBe('メイン');
+    expect(name(' ', 'バイト', 'アルバイト')).toBe('バイト');
   });
 });
 
@@ -40,6 +46,12 @@ describe('LabelDirectory', () => {
   test('ラベルなしはカレンダーの名前と色', () => {
     const dir = new LabelDirectory([cal], catalog, []);
     expect(dir.describe('c1', 'none')).toEqual({ categoryName: 'メイン', color: '#039be5' });
+  });
+  test('閲覧者ごとの上書きは、その閲覧者用の LabelDirectory だけに効く', () => {
+    const base = new LabelDirectory([cal], catalog, [{ calendarId: 'c1', labelKey: 'label:L1', displayName: 'バイト' }]);
+    const forViewer = base.withViewerNames([{ calendarId: 'c1', labelKey: 'label:L1', displayName: 'シフト' }]);
+    expect(forViewer.describe('c1', 'label:L1').categoryName).toBe('シフト');
+    expect(base.describe('c1', 'label:L1').categoryName).toBe('バイト');
   });
   test('カタログにないラベルはカレンダーの名前と色', () => {
     const dir = new LabelDirectory([cal], catalog, []);

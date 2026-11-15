@@ -65,6 +65,7 @@ export function createD1Repositories(db: D1Database): Repositories {
           db.prepare('DELETE FROM viewer_sessions WHERE viewer_id = ?').bind(id),
           db.prepare('DELETE FROM display_rules WHERE viewer_id = ?').bind(id),
           db.prepare('DELETE FROM event_overrides WHERE viewer_id = ?').bind(id),
+          db.prepare('DELETE FROM viewer_label_names WHERE viewer_id = ?').bind(id),
           db.prepare('DELETE FROM viewers WHERE id = ?').bind(id),
         ]);
       },
@@ -253,6 +254,44 @@ export function createD1Repositories(db: D1Database): Repositories {
           )
           .bind(calendarId, labelKey, displayName)
           .run();
+      },
+    },
+
+    viewerLabelNames: {
+      async listForViewer(viewerId) {
+        const { results } = await db
+          .prepare('SELECT calendar_id, label_key, display_name FROM viewer_label_names WHERE viewer_id = ?')
+          .bind(viewerId)
+          .all<{ calendar_id: string; label_key: string; display_name: string }>();
+        return results.map((r) => ({ calendarId: r.calendar_id, labelKey: r.label_key, displayName: r.display_name }));
+      },
+      async set(viewerId, calendarId, labelKey, displayName) {
+        if (displayName === null) {
+          await db
+            .prepare('DELETE FROM viewer_label_names WHERE viewer_id = ? AND calendar_id = ? AND label_key = ?')
+            .bind(viewerId, calendarId, labelKey)
+            .run();
+          return;
+        }
+        await db
+          .prepare(
+            `INSERT INTO viewer_label_names (viewer_id, calendar_id, label_key, display_name) VALUES (?, ?, ?, ?)
+             ON CONFLICT (viewer_id, calendar_id, label_key) DO UPDATE SET display_name = excluded.display_name`,
+          )
+          .bind(viewerId, calendarId, labelKey, displayName)
+          .run();
+      },
+      async replaceAll(viewerId, rows) {
+        await db.batch([
+          db.prepare('DELETE FROM viewer_label_names WHERE viewer_id = ?').bind(viewerId),
+          ...rows.map((r) =>
+            db
+              .prepare(
+                'INSERT INTO viewer_label_names (viewer_id, calendar_id, label_key, display_name) VALUES (?, ?, ?, ?)',
+              )
+              .bind(viewerId, r.calendarId, r.labelKey, r.displayName),
+          ),
+        ]);
       },
     },
 

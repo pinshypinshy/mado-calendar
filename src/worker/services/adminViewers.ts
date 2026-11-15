@@ -15,7 +15,7 @@ import { base64url } from '../lib/encoding';
 import type { Clock, Random, Repositories, SecretBox, ViewerRecord } from '../ports';
 
 export interface AdminViewerDeps {
-  repos: Pick<Repositories, 'viewers' | 'rules' | 'overrides' | 'viewerSessions'>;
+  repos: Pick<Repositories, 'viewers' | 'rules' | 'overrides' | 'viewerLabelNames' | 'viewerSessions'>;
   secretBox: SecretBox;
   random: Random;
   clock: Clock;
@@ -94,16 +94,18 @@ export class AdminViewerService {
     await this.d.repos.viewers.delete(id);
   }
 
-  /** 設定のコピー：表示ルール、個別設定、期間制限、週の開始曜日の初期値（要件 3.3） */
+  /** 設定のコピー：表示ルール、個別設定、カテゴリ名の上書き、期間制限、週の開始曜日の初期値（要件 3.3） */
   async copySettings(targetId: string, sourceId: string): Promise<void> {
     if (targetId === sourceId) throw new AppError('bad_request', 'コピー元とコピー先が同じです');
     const [target, source] = await Promise.all([this.require(targetId), this.require(sourceId)]);
-    const [rules, overrides] = await Promise.all([
+    const [rules, overrides, labelNames] = await Promise.all([
       this.d.repos.rules.listForViewer(source.id),
       this.d.repos.overrides.listForViewer(source.id),
+      this.d.repos.viewerLabelNames.listForViewer(source.id),
     ]);
     await this.d.repos.rules.replaceAll(target.id, rules);
     await this.d.repos.overrides.replaceAll(target.id, overrides);
+    await this.d.repos.viewerLabelNames.replaceAll(target.id, labelNames);
     await this.d.repos.viewers.update(target.id, { period: source.period, defaultWeekStart: source.defaultWeekStart });
   }
 

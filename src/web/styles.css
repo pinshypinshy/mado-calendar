@@ -658,3 +658,21 @@ details {
   margin-top: 8px;
   padding-top: 8px;
 }
+
+.rule-row {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.rule-row-head {
+  display: flex;
+  align-items: center;
+}
+.rule-row-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.rule-row-controls input {
+  flex: 1;
+  min-width: 0;
+}

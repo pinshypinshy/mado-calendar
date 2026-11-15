@@ -139,6 +139,14 @@ export interface AdminLabel {
   color: string;
 }
 
+/** 閲覧者1人から見たラベル（管理画面の表示ルールの行） */
+export interface AdminViewerLabel extends AdminLabel {
+  /** この閲覧者だけの上書き */
+  viewerDisplayName: string | null;
+  /** この閲覧者に見せるカテゴリ名 */
+  viewerCategoryName: string;
+}
+
 export interface RenameLabelRequest {
   calendarId: string;
   labelKey: string;

@@ -1,7 +1,7 @@
 // 閲覧者1人の設定：ID・招待 URL、期間制限、週の開始曜日、設定のコピー、表示ルール、プレビュー（要件 3.3〜3.8）。
 
 import { useCallback, useMemo, useState } from 'react';
-import type { AdminLabel, AdminViewerDetail, DisplayRule, Level, PeriodLimit, WeekStart } from '../../shared/api';
+import type { AdminViewerDetail, AdminViewerLabel, DisplayRule, Level, PeriodLimit, WeekStart } from '../../shared/api';
 import { LEVEL_LABELS, LEVELS } from '../../shared/api';
 import type { AdminApi } from '../api/clients';
 import { CalendarScreen } from '../calendar/CalendarScreen';
@@ -16,7 +16,7 @@ export function ViewerDetail({ api, viewerId, onBack }: { api: AdminApi; viewerI
       const [viewer, rules, labels, calendars, viewers] = await Promise.all([
         api.viewer(viewerId),
         api.rules(viewerId),
-        api.labels(),
+        api.viewerLabels(viewerId),
         api.calendars(),
         api.viewers(),
       ]);
@@ -118,7 +118,8 @@ export function ViewerDetail({ api, viewerId, onBack }: { api: AdminApi; viewerI
         onCopy={(sourceId) =>
           run(async () => {
             const copied = await api.copySettings(viewer.id, sourceId);
-            return { viewer: copied, rules: await api.rules(viewer.id) };
+            const [rules, labels] = await Promise.all([api.rules(viewer.id), api.viewerLabels(viewer.id)]);
+            return { viewer: copied, rules, labels };
           })
         }
       />
@@ -129,6 +130,9 @@ export function ViewerDetail({ api, viewerId, onBack }: { api: AdminApi; viewerI
         rules={data.rules}
         onChange={(calendarId, labelKey, level) =>
           run(async () => ({ rules: await api.setRule(viewer.id, calendarId, labelKey, level) }))
+        }
+        onRename={(calendarId, labelKey, displayName) =>
+          run(async () => ({ labels: await api.renameViewerLabel(viewer.id, calendarId, labelKey, displayName) }))
         }
       />
 
@@ -260,34 +264,55 @@ function RulesEditor({
   calendars,
   rules,
   onChange,
+  onRename,
 }: {
-  labels: AdminLabel[];
+  labels: AdminViewerLabel[];
   calendars: Parameters<typeof groupLabels>[1];
   rules: DisplayRule[];
   onChange: (calendarId: string, labelKey: string, level: Level) => void;
+  onRename: (calendarId: string, labelKey: string, displayName: string | null) => void;
 }) {
   const ruleMap = new Map(rules.map((r) => [`${r.calendarId}\u0000${r.labelKey}`, r.level]));
-  const levelOf = (l: AdminLabel): Level => ruleMap.get(`${l.calendarId}\u0000${l.labelKey}`) ?? 'hidden';
-  const row = (l: AdminLabel) => (
-    <div key={l.labelKey} className="row">
-      <span className="swatch" style={{ background: l.color }} />
-      <span className="row-label">
-        {labelTitle(l)}
-        <span className="muted small"> → {l.categoryName}</span>
-      </span>
-      <select value={levelOf(l)} onChange={(e) => onChange(l.calendarId, l.labelKey, e.target.value as Level)}>
-        {LEVELS.map((lv) => (
-          <option key={lv} value={lv}>
-            {LEVEL_LABELS[lv]}
-          </option>
-        ))}
-      </select>
+  const levelOf = (l: AdminViewerLabel): Level => ruleMap.get(`${l.calendarId}\u0000${l.labelKey}`) ?? 'hidden';
+  const rename = (l: AdminViewerLabel, value: string) => {
+    const next = value.trim() === '' ? null : value.trim();
+    if (next !== l.viewerDisplayName) onRename(l.calendarId, l.labelKey, next);
+  };
+  const row = (l: AdminViewerLabel) => (
+    <div key={l.labelKey} className="rule-row">
+      <div className="rule-row-head">
+        <span className="swatch" style={{ background: l.color }} />
+        <span className="row-label">
+          {labelTitle(l)}
+          <span className="muted small"> → {l.viewerCategoryName}</span>
+        </span>
+      </div>
+      <div className="rule-row-controls">
+        <input
+          // 設定のコピーなどで上書き名が変わったら、入力欄を作り直す
+          key={l.viewerDisplayName ?? ''}
+          defaultValue={l.viewerDisplayName ?? ''}
+          placeholder={`カテゴリ名（空欄なら「${l.categoryName}」）`}
+          aria-label={`${labelTitle(l)} のカテゴリ名（この閲覧者だけ）`}
+          onBlur={(e) => rename(l, e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+        />
+        <select value={levelOf(l)} onChange={(e) => onChange(l.calendarId, l.labelKey, e.target.value as Level)}>
+          {LEVELS.map((lv) => (
+            <option key={lv} value={lv}>
+              {LEVEL_LABELS[lv]}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
   return (
     <div className="card">
       <h3>表示ルール（カレンダー × ラベル）</h3>
-      <p className="muted small">設定していない組み合わせは「非表示」です。</p>
+      <p className="muted small">
+        設定していない組み合わせは「非表示」です。カテゴリ名を入れると、この閲覧者にだけその名前で見せます（空欄なら「ラベル」タブの名前を使います）。
+      </p>
       {groupLabels(labels, calendars).map((g) => (
         <div key={g.calendar.id}>
           <h4>{g.calendar.name}</h4>

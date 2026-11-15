@@ -6,6 +6,7 @@ import type {
   AdminCalendar,
   AdminEventsResponse,
   AdminLabel,
+  AdminViewerLabel,
   AdminMe,
   AdminViewerDetail,
   AdminViewerSummary,
@@ -62,6 +63,14 @@ export interface AdminApi {
   deleteViewer(id: string): Promise<void>;
   copySettings(targetId: string, sourceViewerId: string): Promise<AdminViewerDetail>;
   rules(viewerId: string): Promise<DisplayRule[]>;
+  /** 閲覧者1人から見たラベルの一覧（閲覧者ごとのカテゴリ名つき） */
+  viewerLabels(viewerId: string): Promise<AdminViewerLabel[]>;
+  renameViewerLabel(
+    viewerId: string,
+    calendarId: string,
+    labelKey: string,
+    displayName: string | null,
+  ): Promise<AdminViewerLabel[]>;
   setRule(viewerId: string, calendarId: string, labelKey: string, level: Level): Promise<DisplayRule[]>;
   events(from: DateStr, to: DateStr): Promise<AdminEventsResponse>;
   setOverride(viewerId: string, calendarId: string, eventKey: string, level: OverrideLevel | null): Promise<void>;
@@ -92,6 +101,9 @@ export function createAdminApi(http: Http): AdminApi {
     },
     copySettings: (targetId, sourceViewerId) => http('POST', `${v(targetId)}/copy-from`, { sourceViewerId }),
     rules: (viewerId) => http('GET', `${v(viewerId)}/rules`),
+    viewerLabels: (viewerId) => http('GET', `${v(viewerId)}/labels`),
+    renameViewerLabel: (viewerId, calendarId, labelKey, displayName) =>
+      http('PUT', `${v(viewerId)}/labels`, { calendarId, labelKey, displayName }),
     setRule: (viewerId, calendarId, labelKey, level) =>
       http('PUT', `${v(viewerId)}/rules`, { calendarId, labelKey, level }),
     events: (from, to) => http('GET', `/api/admin/events?${new URLSearchParams({ from, to })}`),

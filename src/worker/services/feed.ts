@@ -19,7 +19,7 @@ export const FORCE_REFRESH_INTERVAL_MS = 5 * 1000;
 export const MAX_RANGE_DAYS = 62;
 
 export interface FeedDeps {
-  repos: Pick<Repositories, 'viewers' | 'rules' | 'overrides'>;
+  repos: Pick<Repositories, 'viewers' | 'rules' | 'overrides' | 'viewerLabelNames'>;
   data: CalendarData;
   clock: Clock;
 }
@@ -75,7 +75,7 @@ export class FeedService {
     }
 
     const calendars = await this.d.data.selectedCalendars({ force });
-    const [directory, events, rules, overrides] = await Promise.all([
+    const [baseDirectory, events, rules, overrides, viewerNames] = await Promise.all([
       this.d.data.labelDirectory(calendars, { force }),
       this.d.data.events(
         calendars.map((c) => c.id),
@@ -85,7 +85,9 @@ export class FeedService {
       ),
       this.d.repos.rules.listForViewer(viewer.id),
       this.d.repos.overrides.listForViewer(viewer.id),
+      this.d.repos.viewerLabelNames.listForViewer(viewer.id),
     ]);
+    const directory = baseDirectory.withViewerNames(viewerNames);
 
     const policy = buildPolicy(window, rules, overrides);
     const result: ViewerEvent[] = [];
