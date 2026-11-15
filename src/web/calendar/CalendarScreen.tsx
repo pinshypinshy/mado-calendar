@@ -40,7 +40,7 @@ export interface CalendarScreenProps {
 
 export function CalendarScreen({ feed, now = Date.now }: CalendarScreenProps) {
   const [me, setMe] = useState<ViewerMe | null>(null);
-  const [view, setView] = useState<ViewMode>('week');
+  const [view, setView] = useState<ViewMode>('month');
   const [anchor, setAnchor] = useState<DateStr | null>(null);
   const [events, setEvents] = useState<ViewerEvent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,7 +62,7 @@ export function CalendarScreen({ feed, now = Date.now }: CalendarScreenProps) {
       .then((m) => {
         if (cancelled) return;
         setMe(m);
-        setAnchor(normalizeAnchor('week', jstDateOf(now()), m.weekStart));
+        setAnchor(normalizeAnchor('month', jstDateOf(now()), m.weekStart));
       })
       .catch((e: unknown) => !cancelled && setError(errorMessage(e)));
     return () => {
