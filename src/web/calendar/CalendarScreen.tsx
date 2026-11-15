@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ViewerEvent, ViewerMe, WeekStart } from '../../shared/api';
-import { addDays, type DateStr, diffDays, jstDateOf, jstMinutesOfDay, startOfMonth } from '../../shared/time';
+import { addDays, type DateStr, diffDays, jstDateOf, jstMinutesOfDay } from '../../shared/time';
 import type { CalendarFeed } from '../api/clients';
 import { errorMessage } from '../ui/errors';
 import { Modal } from '../ui/Modal';
@@ -23,6 +23,8 @@ import {
   normalizeAnchor,
   periodTitle,
   shiftAnchor,
+  switchAnchor,
+  twoWeeksGrid,
   type ViewMode,
   WEEKDAY_LABELS,
 } from './layout';
@@ -32,6 +34,8 @@ const AUTO_REFRESH_MS = 5 * 60 * 1000;
 /** タブに戻ったときの取り直しを、直前に取得していたら省く間隔 */
 const REFETCH_MIN_INTERVAL_MS = 15 * 1000;
 const PX_PER_MIN = 0.8;
+/** 開いたときの表示（要件 4.3） */
+const DEFAULT_VIEW: ViewMode = 'twoWeeks';
 
 export interface CalendarScreenProps {
   feed: CalendarFeed;
@@ -40,7 +44,7 @@ export interface CalendarScreenProps {
 
 export function CalendarScreen({ feed, now = Date.now }: CalendarScreenProps) {
   const [me, setMe] = useState<ViewerMe | null>(null);
-  const [view, setView] = useState<ViewMode>('month');
+  const [view, setView] = useState<ViewMode>(DEFAULT_VIEW);
   const [anchor, setAnchor] = useState<DateStr | null>(null);
   const [events, setEvents] = useState<ViewerEvent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,7 +66,7 @@ export function CalendarScreen({ feed, now = Date.now }: CalendarScreenProps) {
       .then((m) => {
         if (cancelled) return;
         setMe(m);
-        setAnchor(normalizeAnchor('month', jstDateOf(now()), m.weekStart));
+        setAnchor(normalizeAnchor(DEFAULT_VIEW, jstDateOf(now()), m.weekStart));
       })
       .catch((e: unknown) => !cancelled && setError(errorMessage(e)));
     return () => {
@@ -128,19 +132,15 @@ export function CalendarScreen({ feed, now = Date.now }: CalendarScreenProps) {
 
   const changeView = (next: ViewMode) => {
     if (next === view) return;
-    // 月表示 → 週表示：今日がその月にあれば今日の週、なければ月初の週
-    // 月表示 → 週表示で、期間制限の外の週に移らないよう、範囲内の日付に丸める
-    const base =
-      next === 'week' ? (startOfMonth(today) === anchor ? today : anchor) : addDays(anchor, 3);
     setView(next);
-    setAnchor(normalizeAnchor(next, clampDate(base, me.bounds), weekStart));
+    setAnchor(switchAnchor(view, next, anchor, today, weekStart, me.bounds));
   };
 
   const changeWeekStart = async (ws: WeekStart) => {
     try {
       const updated = feed.saveWeekStart ? await feed.saveWeekStart(ws) : { ...me, weekStart: ws };
       setMe(updated);
-      setAnchor(normalizeAnchor(view, clampDate(view === 'week' ? addDays(anchor, 3) : anchor, updated.bounds), ws));
+      setAnchor(normalizeAnchor(view, clampDate(view === 'month' ? anchor : addDays(anchor, 3), updated.bounds), ws));
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -167,6 +167,9 @@ export function CalendarScreen({ feed, now = Date.now }: CalendarScreenProps) {
             <button type="button" aria-pressed={view === 'week'} onClick={() => changeView('week')}>
               週
             </button>
+            <button type="button" aria-pressed={view === 'twoWeeks'} onClick={() => changeView('twoWeeks')}>
+              半月
+            </button>
             <button type="button" aria-pressed={view === 'month'} onClick={() => changeView('month')}>
               月
             </button>
@@ -181,12 +184,23 @@ export function CalendarScreen({ feed, now = Date.now }: CalendarScreenProps) {
 
       {view === 'week' ? (
         <WeekView anchor={anchor} events={events} now={currentTime} onSelect={setSelectedEvent} />
-      ) : (
-        <MonthView
-          anchor={anchor}
-          weekStart={weekStart}
+      ) : view === 'twoWeeks' ? (
+        <DayGrid
+          weeks={twoWeeksGrid(anchor)}
           today={today}
           events={events}
+          maxPerCell={TWO_WEEKS_CELL_MAX}
+          className="is-two-weeks"
+          dayLabel={(d) => (d.endsWith('-01') ? `${Number(d.slice(5, 7))}/1` : String(Number(d.slice(8))))}
+          onSelectDate={setSelectedDate}
+        />
+      ) : (
+        <DayGrid
+          weeks={monthGrid(anchor, weekStart)}
+          today={today}
+          events={events}
+          maxPerCell={MONTH_CELL_MAX}
+          isOther={(d) => d.slice(0, 7) !== anchor.slice(0, 7)}
           onSelectDate={setSelectedDate}
         />
       )}
@@ -313,24 +327,32 @@ function WeekView({
 }
 
 const MONTH_CELL_MAX = 3;
+/** 半月表示は行が月表示の約半分なので、1マスに多く出す */
+const TWO_WEEKS_CELL_MAX = 6;
 
-function MonthView({
-  anchor,
-  weekStart,
+/** 月表示・半月表示のマス目。日付をタップすると、その日の予定一覧を出す */
+function DayGrid({
+  weeks,
   today,
   events,
+  maxPerCell,
+  className = '',
+  isOther = () => false,
+  dayLabel = (d) => String(Number(d.slice(8))),
   onSelectDate,
 }: {
-  anchor: DateStr;
-  weekStart: WeekStart;
+  weeks: DateStr[][];
   today: DateStr;
   events: ViewerEvent[];
+  maxPerCell: number;
+  className?: string;
+  /** 薄く表示する日（月表示の前後の月の日） */
+  isOther?: (d: DateStr) => boolean;
+  dayLabel?: (d: DateStr) => string;
   onSelectDate: (d: DateStr) => void;
 }) {
-  const weeks = monthGrid(anchor, weekStart);
-  const month = anchor.slice(0, 7);
   return (
-    <div className="month">
+    <div className={`month ${className}`}>
       <div className="month-head">
         {weeks[0]!.map((d) => (
           <div key={d}>{WEEKDAY_LABELS[new Date(`${d}T00:00:00Z`).getUTCDay()]}</div>
@@ -344,16 +366,16 @@ function MonthView({
               <button
                 type="button"
                 key={d}
-                className={`month-cell ${d.slice(0, 7) !== month ? 'is-other' : ''} ${d === today ? 'is-today' : ''}`}
+                className={`month-cell ${isOther(d) ? 'is-other' : ''} ${d === today ? 'is-today' : ''}`}
                 onClick={() => onSelectDate(d)}
               >
-                <span className="dn">{Number(d.slice(8))}</span>
-                {dayEvents.slice(0, MONTH_CELL_MAX).map((e) => (
+                <span className="dn">{dayLabel(d)}</span>
+                {dayEvents.slice(0, maxPerCell).map((e) => (
                   <span key={e.id} className="mini" style={{ background: e.color }}>
                     {eventLabel(e)}
                   </span>
                 ))}
-                {dayEvents.length > MONTH_CELL_MAX && <span className="more">+{dayEvents.length - MONTH_CELL_MAX}</span>}
+                {dayEvents.length > maxPerCell && <span className="more">+{dayEvents.length - maxPerCell}</span>}
               </button>
             );
           })}

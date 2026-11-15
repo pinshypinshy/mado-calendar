@@ -391,6 +391,16 @@ button.icon {
   background: var(--accent);
   color: #fff;
 }
+/* 半月表示：2行なので、マスを高くして予定を多く出す（「12/1」のような日付も入る幅にする） */
+.month.is-two-weeks .month-week {
+  min-height: 160px;
+}
+.month.is-two-weeks .month-cell .dn {
+  width: auto;
+  min-width: 22px;
+  padding: 0 4px;
+  border-radius: 11px;
+}
 .mini {
   font-size: 10px;
   padding: 0 3px;

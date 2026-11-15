@@ -16,29 +16,35 @@ import {
   type WeekStart,
 } from '../../shared/time';
 
-export type ViewMode = 'week' | 'month';
+/** 週表示・半月表示（週の開始曜日にそろえた2週間）・月表示 */
+export type ViewMode = 'week' | 'twoWeeks' | 'month';
 
 export const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
-/** 表示する期間の基準日。週表示なら週の開始日、月表示なら月の1日 */
+/** 週単位で区切る表示の日数。月表示は日数が月で変わるので持たない */
+const WEEK_BASED_DAYS = { week: 7, twoWeeks: 14 } as const satisfies Record<Exclude<ViewMode, 'month'>, number>;
+
+/** 表示する期間の基準日。週表示・半月表示なら週の開始日、月表示なら月の1日 */
 export function normalizeAnchor(view: ViewMode, date: DateStr, weekStart: WeekStart): DateStr {
-  return view === 'week' ? startOfWeek(date, weekStart) : startOfMonth(date);
+  return view === 'month' ? startOfMonth(date) : startOfWeek(date, weekStart);
 }
 
 /** 取得する期間 [from, to)。月表示はグリッドに出る前後の月の日も含む */
 export function fetchRange(view: ViewMode, anchor: DateStr, weekStart: WeekStart): { from: DateStr; to: DateStr } {
-  if (view === 'week') return { from: anchor, to: addDays(anchor, 7) };
+  if (view !== 'month') return periodRange(view, anchor);
   const weeks = monthGrid(anchor, weekStart);
   return { from: weeks[0]![0]!, to: addDays(weeks.at(-1)![6]!, 1) };
 }
 
 /** その期間そのもの（月表示なら月の1日〜翌月1日）。移動できるかの判定に使う */
 function periodRange(view: ViewMode, anchor: DateStr): { from: DateStr; to: DateStr } {
-  return view === 'week' ? { from: anchor, to: addDays(anchor, 7) } : { from: anchor, to: addMonths(anchor, 1) };
+  return view === 'month'
+    ? { from: anchor, to: addMonths(anchor, 1) }
+    : { from: anchor, to: addDays(anchor, WEEK_BASED_DAYS[view]) };
 }
 
 export function shiftAnchor(view: ViewMode, anchor: DateStr, dir: -1 | 1): DateStr {
-  return view === 'week' ? addDays(anchor, 7 * dir) : addMonths(anchor, dir);
+  return view === 'month' ? addMonths(anchor, dir) : addDays(anchor, WEEK_BASED_DAYS[view] * dir);
 }
 
 /** 期間制限の範囲内に移動できるか（要件 3.6、4.3） */
@@ -56,10 +62,31 @@ export function clampDate(date: DateStr, bounds: DateBounds): DateStr {
   return date;
 }
 
+/**
+ * 表示を切り替えたときの基準日。
+ * - 今の期間に今日が含まれていれば、今日を含む期間に切り替える
+ * - 含まれていなければ、月表示へは「最初の週の真ん中の日」を含む月へ、
+ *   週表示・半月表示へは、今の期間の最初の日を含む週から始める
+ * 期間制限の外に移らないよう、範囲内の日付に丸めてから決める。
+ */
+export function switchAnchor(
+  from: ViewMode,
+  to: ViewMode,
+  anchor: DateStr,
+  today: DateStr,
+  weekStart: WeekStart,
+  bounds: DateBounds,
+): DateStr {
+  const current = periodRange(from, anchor);
+  const containsToday = current.from <= today && today < current.to;
+  const base = containsToday ? today : to === 'month' && from !== 'month' ? addDays(anchor, 3) : anchor;
+  return normalizeAnchor(to, clampDate(base, bounds), weekStart);
+}
+
 export function periodTitle(view: ViewMode, anchor: DateStr): string {
   const [y, m] = splitDate(anchor);
   if (view === 'month') return `${y}年${m}月`;
-  const end = addDays(anchor, 6);
+  const end = addDays(anchor, WEEK_BASED_DAYS[view] - 1);
   const [, m2, d2] = splitDate(end);
   const [, , d1] = splitDate(anchor);
   return m === m2 ? `${y}年${m}月${d1}日〜${d2}日` : `${y}年${m}月${d1}日〜${m2}月${d2}日`;
@@ -74,6 +101,11 @@ export function monthGrid(monthStart: DateStr, weekStart: WeekStart): DateStr[][
     weeks.push(Array.from({ length: 7 }, (_, i) => addDays(d, i)));
   }
   return weeks;
+}
+
+/** 半月表示のグリッド。週の開始日から2週分 */
+export function twoWeeksGrid(weekStartDate: DateStr): DateStr[][] {
+  return [0, 7].map((offset) => Array.from({ length: 7 }, (_, i) => addDays(weekStartDate, offset + i)));
 }
 
 /** 週表示で、上部の帯に出す予定か（終日の予定と、日をまたぐ予定） */
