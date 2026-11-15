@@ -688,6 +688,39 @@ details {
   padding-top: 8px;
 }
 
+.rule-group {
+  margin-top: 0;
+  border-top: 1px solid var(--line);
+}
+.rule-group summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 10px 0;
+  cursor: pointer;
+}
+/* ブラウザ標準の開閉の三角は、ブラウザや display の値で出方が変わるので、消して自前で出す */
+.rule-group summary::-webkit-details-marker {
+  display: none;
+}
+.rule-group summary::before {
+  content: '▸';
+  color: var(--muted);
+}
+.rule-group[open] summary::before {
+  content: '▾';
+}
+.rule-group-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+.rule-group .levels {
+  margin-top: 0;
+}
+.rule-group .rule-row:last-child {
+  border-bottom: none;
+}
 .rule-row {
   padding: 8px 0;
   border-bottom: 1px solid var(--line);

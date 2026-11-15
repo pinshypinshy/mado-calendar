@@ -313,13 +313,29 @@ function RulesEditor({
       <p className="muted small">
         設定していない組み合わせは「非表示」です。カテゴリ名を入れると、この閲覧者にだけその名前で見せます（空欄なら「ラベル」タブの名前を使います）。
       </p>
-      {groupLabels(labels, calendars).map((g) => (
-        <div key={g.calendar.id}>
-          <h4>{g.calendar.name}</h4>
-          {g.labels.map(row)}
-          {g.none.map(row)}
-        </div>
-      ))}
+      {groupLabels(labels, calendars).map((g) => {
+        const rows = [...g.labels, ...g.none];
+        // 閉じたままでも、どれくらい見せているかが分かるように、表示レベルごとの件数を見出しに出す
+        const counts = LEVELS.map((lv) => [lv, rows.filter((l) => levelOf(l) === lv).length] as const).filter(
+          ([, n]) => n > 0,
+        );
+        return (
+          // 開閉は <details> に任せる。key が変わらないので、ルールを変えて再描画しても開閉はそのまま残る
+          <details key={g.calendar.id} className="rule-group">
+            <summary>
+              <span className="rule-group-name">{g.calendar.name}</span>
+              <span className="levels">
+                {counts.map(([lv, n]) => (
+                  <span key={lv} className={`level level-${lv}`}>
+                    {LEVEL_LABELS[lv]} {n}
+                  </span>
+                ))}
+              </span>
+            </summary>
+            {rows.map(row)}
+          </details>
+        );
+      })}
     </div>
   );
 }
