@@ -102,6 +102,14 @@ export class ViewerAccessService {
     return { token, viewer, ownerName: ownerLabel(owner.displayName), renewed };
   }
 
+  /**
+   * 端末の参加を1つ外す（要件 4.6）。セッションを D1 から消すので、Cookie の写しが残っていても使えない。
+   * 閲覧者 ID は有効なままなので、同じ ID でまた参加できる
+   */
+  async leave(token: string): Promise<void> {
+    await this.d.global.viewerSessions.delete(await sha256Base64url(token));
+  }
+
   sessionMaxAgeSeconds(): number {
     return VIEWER_SESSION_TTL_MS / 1000;
   }

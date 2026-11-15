@@ -176,7 +176,7 @@ export function CalendarScreen({ feed, now = Date.now }: CalendarScreenProps) {
               月
             </button>
           </div>
-          <button type="button" onClick={() => void load(true)} disabled={loading} aria-label="更新">
+          <button type="button" className="refresh" onClick={() => void load(true)} disabled={loading} aria-label="更新">
             {loading ? '…' : '↻'}
           </button>
         </div>

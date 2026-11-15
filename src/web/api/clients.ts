@@ -37,6 +37,8 @@ export interface ViewerApi {
   memberships(): Promise<MembershipsResponse>;
   /** 表示するオーナーを覚えておく */
   select(viewerId: string): Promise<void>;
+  /** この端末の参加を1つ外す。閲覧者 ID は有効なまま */
+  leave(viewerId: string): Promise<void>;
   /** 参加している閲覧者 ID 1つ分の予定の取り出し口 */
   feed(viewerId: string): CalendarFeed;
 }
@@ -47,6 +49,9 @@ export function createViewerApi(http: Http): ViewerApi {
     memberships: () => http('GET', '/api/viewer/memberships'),
     select: async (viewerId) => {
       await http('PUT', '/api/viewer/current', { viewerId });
+    },
+    leave: async (viewerId) => {
+      await http('DELETE', `/api/viewer/memberships/${encodeURIComponent(viewerId)}`);
     },
     feed: (viewerId) => {
       const v = { v: viewerId };

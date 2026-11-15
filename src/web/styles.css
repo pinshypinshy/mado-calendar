@@ -193,10 +193,16 @@ button.icon {
   font-weight: 600;
   font-size: 17px;
 }
+/* 更新ボタンは、ツールバーの行の右端に置く。iPhone の幅ではツールバーがタイトルの下の行に回るので、
+   ツールバーを行いっぱいに広げ、更新ボタンだけを右に寄せる */
 .cal-toolbar {
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: 4px;
+}
+.cal-toolbar .refresh {
+  margin-left: auto;
 }
 .cal-toolbar button {
   min-width: 36px;
@@ -724,6 +730,23 @@ details {
   flex: 1;
   font-size: 14px;
   color: var(--muted);
+}
+.owner-switcher .leave {
+  min-height: 28px;
+  padding: 2px 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+button.danger-fill {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
 }
 .owner-tabs {
   flex: 1;

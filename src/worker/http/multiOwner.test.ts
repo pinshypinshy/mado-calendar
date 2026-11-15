@@ -245,6 +245,50 @@ describe('閲覧者が複数のオーナーに参加する（要件 4.1、4.6）
     expect((await viewer.json<MembershipsResponse>('/api/viewer/memberships')).body.memberships).toHaveLength(1);
   });
 
+  test('退出すると、この端末の参加だけが外れ、残りの最初のオーナーを表示する', async () => {
+    const va = await setup(a, [FAKE_MAIN], []);
+    const vb = await setup(b, [FAKE_CLASS], []);
+    const viewer = new TestClient(ctx.app);
+    await viewer.joinWith(va.code);
+    await viewer.joinWith(vb.code);
+    // 退出する前の Cookie の写し（端末の外に残った場合）
+    const copied = new TestClient(ctx.app);
+    for (const [k, v] of viewer.cookies) copied.cookies.set(k, v);
+
+    expect((await viewer.request(`/api/viewer/memberships/${vb.id}`, { method: 'DELETE' })).status).toBe(200);
+    const ms = await viewer.json<MembershipsResponse>('/api/viewer/memberships');
+    expect(ms.body).toEqual({ memberships: [{ viewerId: va.id, ownerName: '（名前未設定）' }], current: va.id });
+    expect((await viewer.request(`${WEEK}&v=${vb.id}`)).status).toBe(404);
+    // セッションを消したので、Cookie の写しでも B は見られない
+    expect((await copied.json<MembershipsResponse>('/api/viewer/memberships')).body.memberships).toEqual([
+      { viewerId: va.id, ownerName: '（名前未設定）' },
+    ]);
+    // 閲覧者 ID は無効にならない。B の管理画面でも有効のまま
+    expect((await b.json<AdminViewerDetail>(`/api/admin/viewers/${vb.id}`)).body.status).toBe('active');
+    await viewer.joinWith(vb.code);
+    expect((await viewer.json<MembershipsResponse>('/api/viewer/memberships')).body.memberships).toHaveLength(2);
+  });
+
+  test('最後の参加から退出すると、参加していない状態になる', async () => {
+    const va = await setup(a, [FAKE_MAIN], []);
+    const viewer = new TestClient(ctx.app);
+    await viewer.joinWith(va.code);
+    expect((await viewer.request(`/api/viewer/memberships/${va.id}`, { method: 'DELETE' })).status).toBe(200);
+    expect(viewer.cookies.size).toBe(0);
+    expect((await viewer.request('/api/viewer/memberships')).status).toBe(401);
+  });
+
+  test('参加していない閲覧者からは退出できない。別のサイトからも退出させられない', async () => {
+    const va = await setup(a, [FAKE_MAIN], []);
+    const vb = await setup(b, [FAKE_CLASS], []);
+    const viewer = new TestClient(ctx.app);
+    await viewer.joinWith(va.code);
+    expect((await viewer.request(`/api/viewer/memberships/${vb.id}`, { method: 'DELETE' })).status).toBe(404);
+    const res = await viewer.request(`/api/viewer/memberships/${va.id}`, { method: 'DELETE', headers: { Origin: 'https://evil.example.com' } });
+    expect(res.status).toBe(403);
+    expect((await viewer.json<MembershipsResponse>('/api/viewer/memberships')).body.memberships).toHaveLength(1);
+  });
+
   test('表示名が空欄のオーナーは「（名前未設定）」と表示する', async () => {
     const vb = await setup(b, [FAKE_CLASS], []);
     const viewer = new TestClient(ctx.app);

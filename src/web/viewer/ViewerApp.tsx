@@ -28,6 +28,7 @@ export function ViewerApp({ api, inviteCode, standalone, inAppBrowser, clearInvi
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [adding, setAdding] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   /** 招待 URL で参加できなかったが、ほかのオーナーには参加済みのときのお知らせ */
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -79,6 +80,16 @@ export function ViewerApp({ api, inviteCode, standalone, inAppBrowser, clearInvi
     [api, state],
   );
 
+  const leave = useCallback(
+    async (viewerId: string) => {
+      await api.leave(viewerId);
+      setLeaving(false);
+      // 残りがなければ 401 になり、ID 入力画面を出す
+      setState(await loadMemberships());
+    },
+    [api, loadMemberships],
+  );
+
   const current = state.kind === 'joined' ? state.memberships.current : null;
   const feed = useMemo(() => (current ? api.feed(current) : null), [api, current]);
 
@@ -107,9 +118,21 @@ export function ViewerApp({ api, inviteCode, standalone, inAppBrowser, clearInvi
       )}
       {state.kind === 'joined' && feed && (
         <>
-          <OwnerSwitcher memberships={state.memberships} onSelect={(id) => void select(id)} onAdd={() => setAdding(true)} />
+          <OwnerSwitcher
+            memberships={state.memberships}
+            onSelect={(id) => void select(id)}
+            onAdd={() => setAdding(true)}
+            onLeave={() => setLeaving(true)}
+          />
           <CalendarScreen key={state.memberships.current} feed={feed} />
         </>
+      )}
+      {leaving && state.kind === 'joined' && (
+        <LeaveConfirm
+          ownerName={state.memberships.memberships.find((m) => m.viewerId === state.memberships.current)?.ownerName ?? ''}
+          onLeave={() => leave(state.memberships.current)}
+          onClose={() => setLeaving(false)}
+        />
       )}
       {adding && (
         <Modal title="ほかの人のカレンダーを追加" onClose={() => setAdding(false)}>
@@ -120,15 +143,18 @@ export function ViewerApp({ api, inviteCode, standalone, inAppBrowser, clearInvi
   );
 }
 
-/** 参加しているオーナーの切り替え。1人だけなら名前と追加ボタンだけを出す */
+/** 参加しているオーナーの切り替え。1人だけなら名前と、追加・退出のボタンだけを出す */
 function OwnerSwitcher({
   memberships,
   onSelect,
   onAdd,
+  onLeave,
 }: {
   memberships: MembershipsResponse;
   onSelect: (viewerId: string) => void;
   onAdd: () => void;
+  /** 表示中のオーナーから退出する */
+  onLeave: () => void;
 }) {
   return (
     <div className="owner-switcher">
@@ -152,7 +178,48 @@ function OwnerSwitcher({
       <button type="button" className="icon" onClick={onAdd} aria-label="ほかの人のカレンダーを追加">
         ＋
       </button>
+      <button type="button" className="leave" onClick={onLeave}>
+        退出
+      </button>
     </div>
+  );
+}
+
+/** 退出する前の確認（要件 4.6）。押し間違えで退出しないよう、必ずここを通す */
+function LeaveConfirm({
+  ownerName,
+  onLeave,
+  onClose,
+}: {
+  ownerName: string;
+  onLeave: () => Promise<void>;
+  onClose: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submit = async () => {
+    setBusy(true);
+    try {
+      await onLeave();
+    } catch (e) {
+      setError(errorMessage(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal title="カレンダーから退出" onClose={onClose}>
+      <p>{ownerName} のカレンダーから退出しますか？</p>
+      <p className="muted small">この端末では見られなくなります。もう一度見るには、招待 URL か ID でまた参加してください。</p>
+      {error && <p className="error">{error}</p>}
+      <div className="confirm-actions">
+        <button type="button" onClick={onClose} disabled={busy}>
+          キャンセル
+        </button>
+        <button type="button" className="danger-fill" onClick={() => void submit()} disabled={busy}>
+          {busy ? '退出しています…' : '退出する'}
+        </button>
+      </div>
+    </Modal>
   );
 }
 

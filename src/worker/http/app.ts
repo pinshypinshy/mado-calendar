@@ -139,6 +139,20 @@ export function createApp(s: Services): Hono<Env> {
     return c.json({ ok: true });
   });
 
+  /** この端末の参加を1つ外す（要件 4.6）。選択中だったら選択も消し、残りの参加の最初のものを表示させる */
+  app.delete('/api/viewer/memberships/:viewerId', requireMemberships, async (c) => {
+    const memberships = c.get('memberships');
+    const leaving = memberships.find((m) => m.viewer.id === c.req.param('viewerId'));
+    if (!leaving) throw new AppError('not_found', '参加していない閲覧者です');
+    await s.viewerAccess.leave(leaving.token);
+    const rest = memberships.filter((m) => m !== leaving);
+    // requireMemberships が Cookie を発行し直していても、あとから付けたこちらが効く
+    if (rest.length === 0) deleteCookie(c, COOKIE.viewer, { path: '/' });
+    else setSessionCookie(c, COOKIE.viewer, serializeTokens(rest.map((m) => m.token)), s.viewerAccess.sessionMaxAgeSeconds());
+    if (getCookie(c, COOKIE.viewerCurrent) === leaving.viewer.id) deleteCookie(c, COOKIE.viewerCurrent, { path: '/' });
+    return c.json({ ok: true });
+  });
+
   app.get('/api/viewer/me', requireMemberships, requireViewer, (c) => c.json(c.get('os').feed.me(c.get('viewer'))));
 
   app.put('/api/viewer/settings', requireMemberships, requireViewer, async (c) => {
