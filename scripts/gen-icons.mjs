@@ -49,32 +49,43 @@ function crc32(buf) {
   return (c ^ 0xffffffff) >>> 0;
 }
 
-const BLUE = [3, 155, 229, 255];
-const DARK = [2, 119, 189, 255];
 const WHITE = [255, 255, 255, 255];
 
-// 背景は全面を塗る（iOS が角を丸めるため、透明にしない）
-function pixel(x, y) {
-  const inBody = x > 0.2 && x < 0.8 && y > 0.25 && y < 0.8;
-  const inHeader = x > 0.2 && x < 0.8 && y > 0.25 && y < 0.38;
-  const rings = (Math.abs(x - 0.35) < 0.03 || Math.abs(x - 0.65) < 0.03) && y > 0.18 && y < 0.3;
-  const cellX = Math.floor((x - 0.24) / 0.105);
-  const cellY = Math.floor((y - 0.43) / 0.11);
-  const inCell =
-    x > 0.24 && x < 0.76 && y > 0.43 && y < 0.76 &&
-    (x - 0.24) % 0.105 < 0.075 && (y - 0.43) % 0.11 < 0.08 && cellX < 5 && cellY < 3;
-  if (rings) return DARK;
-  if (inHeader) return DARK;
-  if (inCell) return cellX === 2 && cellY === 1 ? [229, 115, 115, 255] : [225, 240, 250, 255];
-  if (inBody) return WHITE;
-  return BLUE;
+/**
+ * 図柄：角丸の背景に、白いカレンダーの形。背景は全面を塗る（iOS が角を丸めるため、透明にしない）
+ * @param base 背景の色
+ * @param dark カレンダーの上部（リング・見出し）の色
+ */
+function makePixel(base, dark) {
+  return (x, y) => {
+    const inBody = x > 0.2 && x < 0.8 && y > 0.25 && y < 0.8;
+    const inHeader = x > 0.2 && x < 0.8 && y > 0.25 && y < 0.38;
+    const rings = (Math.abs(x - 0.35) < 0.03 || Math.abs(x - 0.65) < 0.03) && y > 0.18 && y < 0.3;
+    const cellX = Math.floor((x - 0.24) / 0.105);
+    const cellY = Math.floor((y - 0.43) / 0.11);
+    const inCell =
+      x > 0.24 && x < 0.76 && y > 0.43 && y < 0.76 &&
+      (x - 0.24) % 0.105 < 0.075 && (y - 0.43) % 0.11 < 0.08 && cellX < 5 && cellY < 3;
+    if (rings || inHeader) return dark;
+    if (inCell) return cellX === 2 && cellY === 1 ? [229, 115, 115, 255] : [225, 240, 250, 255];
+    if (inBody) return WHITE;
+    return base;
+  };
 }
 
-for (const [name, size] of [
-  ['icon-192.png', 192],
-  ['icon-512.png', 512],
-  ['apple-touch-icon.png', 180],
-]) {
-  writeFileSync(new URL(`../public/${name}`, import.meta.url), png(size, pixel));
+// 閲覧画面（青）と管理画面（濃い灰色）。ホーム画面で見分けられるよう色を変える
+const variants = [
+  { prefix: '', pixel: makePixel([3, 155, 229, 255], [2, 119, 189, 255]) },
+  { prefix: 'admin-', pixel: makePixel([69, 90, 100, 255], [38, 50, 56, 255]) },
+];
+
+for (const { prefix, pixel } of variants) {
+  for (const [name, size] of [
+    ['icon-192.png', 192],
+    ['icon-512.png', 512],
+    ['apple-touch-icon.png', 180],
+  ]) {
+    writeFileSync(new URL(`../public/${prefix}${name}`, import.meta.url), png(size, pixel));
+  }
 }
 console.log('icons written');
