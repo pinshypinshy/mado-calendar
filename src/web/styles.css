@@ -285,7 +285,8 @@ button.icon {
   text-align: left;
   overflow: hidden;
   white-space: nowrap;
-  text-overflow: ellipsis;
+  /* 入りきらない予定名は、点々（…）にせず枠の端で切る。マスが狭く、点々が1文字分を取ってしまうため（要件 4.3） */
+  text-overflow: clip;
   padding: 1px 4px;
   min-height: 0;
   display: block;
