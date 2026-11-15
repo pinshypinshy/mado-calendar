@@ -24,7 +24,7 @@ import {
   periodTitle,
   shiftAnchor,
   switchAnchor,
-  twoWeeksGrid,
+  threeWeeksGrid,
   type ViewMode,
   WEEKDAY_LABELS,
 } from './layout';
@@ -35,7 +35,7 @@ const AUTO_REFRESH_MS = 5 * 60 * 1000;
 const REFETCH_MIN_INTERVAL_MS = 15 * 1000;
 const PX_PER_MIN = 0.8;
 /** 開いたときの表示（要件 4.3） */
-const DEFAULT_VIEW: ViewMode = 'twoWeeks';
+const DEFAULT_VIEW: ViewMode = 'threeWeeks';
 
 export interface CalendarScreenProps {
   feed: CalendarFeed;
@@ -167,8 +167,8 @@ export function CalendarScreen({ feed, now = Date.now }: CalendarScreenProps) {
             <button type="button" aria-pressed={view === 'week'} onClick={() => changeView('week')}>
               週
             </button>
-            <button type="button" aria-pressed={view === 'twoWeeks'} onClick={() => changeView('twoWeeks')}>
-              半月
+            <button type="button" aria-pressed={view === 'threeWeeks'} onClick={() => changeView('threeWeeks')}>
+              3週
             </button>
             <button type="button" aria-pressed={view === 'month'} onClick={() => changeView('month')}>
               月
@@ -184,13 +184,13 @@ export function CalendarScreen({ feed, now = Date.now }: CalendarScreenProps) {
 
       {view === 'week' ? (
         <WeekView anchor={anchor} events={events} now={currentTime} onSelect={setSelectedEvent} />
-      ) : view === 'twoWeeks' ? (
+      ) : view === 'threeWeeks' ? (
         <DayGrid
-          weeks={twoWeeksGrid(anchor)}
+          weeks={threeWeeksGrid(anchor)}
           today={today}
           events={events}
-          maxPerCell={TWO_WEEKS_CELL_MAX}
-          className="is-two-weeks"
+          maxPerCell={THREE_WEEKS_CELL_MAX}
+          className="is-three-weeks"
           dayLabel={(d) => (d.endsWith('-01') ? `${Number(d.slice(5, 7))}/1` : String(Number(d.slice(8))))}
           onSelectDate={setSelectedDate}
         />
@@ -327,10 +327,10 @@ function WeekView({
 }
 
 const MONTH_CELL_MAX = 3;
-/** 半月表示は行が月表示の約半分なので、1マスに多く出す */
-const TWO_WEEKS_CELL_MAX = 6;
+/** 3週間表示は行が月表示より少なくマスが高いので、1マスに多く出す */
+const THREE_WEEKS_CELL_MAX = 6;
 
-/** 月表示・半月表示のマス目。日付をタップすると、その日の予定一覧を出す */
+/** 月表示・3週間表示のマス目。日付をタップすると、その日の予定一覧を出す */
 function DayGrid({
   weeks,
   today,
