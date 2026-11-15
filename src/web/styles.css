@@ -456,6 +456,20 @@ button.icon {
     border-radius: 14px;
   }
 }
+/* アラート型：画面の幅によらず中央に小さく出す */
+.modal-backdrop.modal-alert {
+  align-items: center;
+  padding: 24px;
+}
+.modal-alert .modal {
+  max-width: 320px;
+  border-radius: 14px;
+  padding: 16px;
+}
+.alert-input {
+  width: 100%;
+  margin-top: 12px;
+}
 .modal-head {
   display: flex;
   justify-content: space-between;
@@ -645,6 +659,41 @@ button.icon {
   align-items: flex-start;
   text-align: left;
   padding: 6px 0;
+}
+/* 画面の見出しと、その右端に置く操作（閲覧者の追加など） */
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.page-head-action {
+  color: var(--accent);
+  min-height: 44px;
+  min-width: 44px;
+}
+/* 閲覧者の一覧の1行：左に人のアイコン、右に表示名と最終閲覧 */
+.list-button.viewer-cell {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.viewer-avatar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: var(--muted);
+}
+.viewer-cell-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 .check {
   display: flex;
@@ -855,6 +904,11 @@ details {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 12px;
+}
+button.primary-fill {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 button.danger-fill {
   background: var(--danger);
