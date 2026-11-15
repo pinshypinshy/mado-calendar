@@ -13,8 +13,11 @@ import type {
   DateStr,
   DisplayRule,
   EventsResponse,
+  JoinResponse,
   Level,
+  MembershipsResponse,
   OverrideLevel,
+  OwnerSummary,
   PeriodLimit,
   ViewerMe,
   WeekStart,
@@ -28,25 +31,46 @@ export interface CalendarFeed {
   saveWeekStart?(weekStart: WeekStart): Promise<ViewerMe>;
 }
 
-export interface ViewerApi extends CalendarFeed {
-  join(code: string): Promise<void>;
+export interface ViewerApi {
+  join(code: string): Promise<JoinResponse>;
+  /** 端末が参加しているオーナーの一覧と、表示するオーナー（要件 4.6） */
+  memberships(): Promise<MembershipsResponse>;
+  /** 表示するオーナーを覚えておく */
+  select(viewerId: string): Promise<void>;
+  /** 参加している閲覧者 ID 1つ分の予定の取り出し口 */
+  feed(viewerId: string): CalendarFeed;
 }
 
 export function createViewerApi(http: Http): ViewerApi {
   return {
-    join: async (code) => {
-      await http('POST', '/api/viewer/join', { code });
+    join: (code) => http('POST', '/api/viewer/join', { code }),
+    memberships: () => http('GET', '/api/viewer/memberships'),
+    select: async (viewerId) => {
+      await http('PUT', '/api/viewer/current', { viewerId });
     },
-    me: () => http('GET', '/api/viewer/me'),
-    events: (from, to, refresh) =>
-      http('GET', `/api/viewer/events?${new URLSearchParams({ from, to, ...(refresh ? { refresh: '1' } : {}) })}`),
-    saveWeekStart: (weekStart) => http('PUT', '/api/viewer/settings', { weekStart }),
+    feed: (viewerId) => {
+      const v = { v: viewerId };
+      return {
+        me: () => http('GET', `/api/viewer/me?${new URLSearchParams(v)}`),
+        events: (from, to, refresh) =>
+          http(
+            'GET',
+            `/api/viewer/events?${new URLSearchParams({ ...v, from, to, ...(refresh ? { refresh: '1' } : {}) })}`,
+          ),
+        saveWeekStart: (weekStart) => http('PUT', `/api/viewer/settings?${new URLSearchParams(v)}`, { weekStart }),
+      };
+    },
   };
 }
 
 export interface AdminApi {
   me(): Promise<AdminMe>;
   logout(): Promise<void>;
+  updateProfile(displayName: string): Promise<void>;
+  /** 運営者だけ（要件 3.10） */
+  owners(): Promise<OwnerSummary[]>;
+  addOwner(email: string): Promise<OwnerSummary>;
+  deleteOwner(ownerId: string): Promise<void>;
   calendars(): Promise<AdminCalendar[]>;
   selectCalendars(calendarIds: string[]): Promise<AdminCalendar[]>;
   labels(): Promise<AdminLabel[]>;
@@ -84,6 +108,14 @@ export function createAdminApi(http: Http): AdminApi {
     me: () => http('GET', '/api/admin/me'),
     logout: async () => {
       await http('POST', '/auth/logout');
+    },
+    updateProfile: async (displayName) => {
+      await http('PUT', '/api/admin/profile', { displayName });
+    },
+    owners: () => http('GET', '/api/admin/owners'),
+    addOwner: (email) => http('POST', '/api/admin/owners', { email }),
+    deleteOwner: async (ownerId) => {
+      await http('DELETE', `/api/admin/owners/${encodeURIComponent(ownerId)}`);
     },
     calendars: () => http('GET', '/api/admin/calendars'),
     selectCalendars: (calendarIds) => http('PUT', '/api/admin/calendars', { calendarIds }),

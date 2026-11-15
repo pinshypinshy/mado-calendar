@@ -1,9 +1,12 @@
 // 閲覧者の画面（要件 4章）。
+// 1台の端末で複数のオーナーに参加でき、画面の上部で表示するオーナーを切り替える（要件 4.6）。
 
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import type { MembershipsResponse } from '../../shared/api';
 import type { ViewerApi } from '../api/clients';
 import { CalendarScreen } from '../calendar/CalendarScreen';
 import { errorMessage, isUnauthorized } from '../ui/errors';
+import { Modal } from '../ui/Modal';
 
 export interface ViewerAppProps {
   api: ViewerApi;
@@ -15,11 +18,26 @@ export interface ViewerAppProps {
   clearInviteFromUrl: () => void;
 }
 
-type State = { kind: 'loading' } | { kind: 'joined' } | { kind: 'join'; error: string | null } | { kind: 'error'; message: string };
+type State =
+  | { kind: 'loading' }
+  | { kind: 'joined'; memberships: MembershipsResponse }
+  | { kind: 'join'; error: string | null }
+  | { kind: 'error'; message: string };
 
 export function ViewerApp({ api, inviteCode, standalone, inAppBrowser, clearInviteFromUrl }: ViewerAppProps) {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
+  const [adding, setAdding] = useState(false);
+  /** 招待 URL で参加できなかったが、ほかのオーナーには参加済みのときのお知らせ */
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const loadMemberships = useCallback(async (): Promise<State> => {
+    try {
+      return { kind: 'joined', memberships: await api.memberships() };
+    } catch (e) {
+      return isUnauthorized(e) ? { kind: 'join', error: null } : { kind: 'error', message: errorMessage(e) };
+    }
+  }, [api]);
 
   useEffect(() => {
     let cancelled = false;
@@ -28,31 +46,53 @@ export function ViewerApp({ api, inviteCode, standalone, inAppBrowser, clearInvi
       if (inviteCode && !inAppBrowser) {
         try {
           await api.join(inviteCode);
-          clearInviteFromUrl();
-          if (!cancelled) setState({ kind: 'joined' });
-          return;
         } catch (e) {
           clearInviteFromUrl();
-          if (!cancelled) setState({ kind: 'join', error: errorMessage(e) });
+          const next = await loadMemberships();
+          // すでにほかのオーナーに参加している場合は、その画面を出したうえでエラーを伝える
+          if (cancelled) return;
+          setState(next.kind === 'joined' ? next : { kind: 'join', error: errorMessage(e) });
+          if (next.kind === 'joined') setNotice(`招待 URL で参加できませんでした：${errorMessage(e)}`);
           return;
         }
+        clearInviteFromUrl();
       }
-      try {
-        await api.me();
-        if (!cancelled) setState({ kind: 'joined' });
-      } catch (e) {
-        if (cancelled) return;
-        setState(isUnauthorized(e) ? { kind: 'join', error: null } : { kind: 'error', message: errorMessage(e) });
-      }
+      const next = await loadMemberships();
+      if (!cancelled) setState(next);
     })();
     return () => {
       cancelled = true;
     };
-  }, [api, inviteCode, inAppBrowser, clearInviteFromUrl, attempt]);
+  }, [api, inviteCode, inAppBrowser, clearInviteFromUrl, loadMemberships, attempt]);
+
+  const onJoined = useCallback(async () => {
+    setAdding(false);
+    setState(await loadMemberships());
+  }, [loadMemberships]);
+
+  const select = useCallback(
+    async (viewerId: string) => {
+      if (state.kind !== 'joined') return;
+      setState({ kind: 'joined', memberships: { ...state.memberships, current: viewerId } });
+      await api.select(viewerId).catch(() => {});
+    },
+    [api, state],
+  );
+
+  const current = state.kind === 'joined' ? state.memberships.current : null;
+  const feed = useMemo(() => (current ? api.feed(current) : null), [api, current]);
 
   return (
     <div className="viewer">
       <Guidance standalone={standalone} inAppBrowser={inAppBrowser} />
+      {notice && (
+        <div className="banner banner-error">
+          <span>{notice}</span>
+          <button type="button" className="icon" onClick={() => setNotice(null)} aria-label="閉じる">
+            ×
+          </button>
+        </div>
+      )}
       {state.kind === 'loading' && <div className="cal-status">読み込み中…</div>}
       {state.kind === 'error' && (
         <div className="center-box">
@@ -63,9 +103,55 @@ export function ViewerApp({ api, inviteCode, standalone, inAppBrowser, clearInvi
         </div>
       )}
       {state.kind === 'join' && !(inAppBrowser && inviteCode) && (
-        <JoinForm api={api} initialError={state.error} onJoined={() => setState({ kind: 'joined' })} />
+        <JoinForm api={api} initialError={state.error} onJoined={() => void onJoined()} />
       )}
-      {state.kind === 'joined' && <CalendarScreen feed={api} />}
+      {state.kind === 'joined' && feed && (
+        <>
+          <OwnerSwitcher memberships={state.memberships} onSelect={(id) => void select(id)} onAdd={() => setAdding(true)} />
+          <CalendarScreen key={state.memberships.current} feed={feed} />
+        </>
+      )}
+      {adding && (
+        <Modal title="ほかの人のカレンダーを追加" onClose={() => setAdding(false)}>
+          <JoinForm api={api} initialError={null} onJoined={() => void onJoined()} compact />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/** 参加しているオーナーの切り替え。1人だけなら名前と追加ボタンだけを出す */
+function OwnerSwitcher({
+  memberships,
+  onSelect,
+  onAdd,
+}: {
+  memberships: MembershipsResponse;
+  onSelect: (viewerId: string) => void;
+  onAdd: () => void;
+}) {
+  return (
+    <div className="owner-switcher">
+      {memberships.memberships.length > 1 ? (
+        <div className="owner-tabs" role="tablist" aria-label="表示するカレンダー">
+          {memberships.memberships.map((m) => (
+            <button
+              type="button"
+              role="tab"
+              key={m.viewerId}
+              aria-selected={m.viewerId === memberships.current}
+              onClick={() => onSelect(m.viewerId)}
+            >
+              {m.ownerName}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <span className="owner-name">{memberships.memberships[0]?.ownerName} のカレンダー</span>
+      )}
+      <button type="button" className="icon" onClick={onAdd} aria-label="ほかの人のカレンダーを追加">
+        ＋
+      </button>
     </div>
   );
 }
@@ -94,7 +180,17 @@ function Guidance({ standalone, inAppBrowser }: { standalone: boolean; inAppBrow
   );
 }
 
-function JoinForm({ api, initialError, onJoined }: { api: ViewerApi; initialError: string | null; onJoined: () => void }) {
+function JoinForm({
+  api,
+  initialError,
+  onJoined,
+  compact = false,
+}: {
+  api: ViewerApi;
+  initialError: string | null;
+  onJoined: () => void;
+  compact?: boolean;
+}) {
   const [code, setCode] = useState('');
   const [error, setError] = useState(initialError);
   const [busy, setBusy] = useState(false);
@@ -113,8 +209,8 @@ function JoinForm({ api, initialError, onJoined }: { api: ViewerApi; initialErro
   };
 
   return (
-    <form className="center-box join" onSubmit={submit}>
-      <h1>窓カレンダーに参加</h1>
+    <form className={compact ? 'join join-compact' : 'center-box join'} onSubmit={submit}>
+      {!compact && <h1>窓カレンダーに参加</h1>}
       <p className="muted">受け取った ID を入力してください。</p>
       <input
         value={code}

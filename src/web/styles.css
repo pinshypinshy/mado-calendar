@@ -676,3 +676,51 @@ details {
   flex: 1;
   min-width: 0;
 }
+
+/* 閲覧者：オーナーの切り替え（要件 4.6） */
+.owner-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 0;
+}
+.owner-name {
+  flex: 1;
+  font-size: 14px;
+  color: var(--muted);
+}
+.owner-tabs {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+}
+.owner-tabs button {
+  min-height: 32px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.owner-tabs button[aria-selected='true'] {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.join-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.join-compact button[type='submit'] {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* 管理画面：オーナーの一覧（運営者のみ） */
+.owner-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
