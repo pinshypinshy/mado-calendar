@@ -18,7 +18,7 @@ npm run db:migrate:local
 npm run dev
 ```
 
-- 管理画面：起動時に表示される URL（ふつうは <http://localhost:5173>。使用中なら別の番号になる）の `/admin`。「Google でログイン」を押すと、`.dev.vars` の `ADMIN_EMAIL` でそのままログインする
+- 管理画面：起動時に表示される URL（ふつうは <http://localhost:5173>。使用中なら別の番号になる）の `/admin`。「Google でログイン」を押すと、`.dev.vars` の `OPERATOR_EMAIL`（運営者）でそのままログインする。ほかのオーナーとして試すときは、運営者の「オーナー」タブでアドレスを追加し、ログイン画面の「アカウントを指定してログイン」にそのアドレスを入れる
 - 閲覧画面：管理画面で閲覧者を追加し、表示される招待 URL を開く
 - フェイクのカレンダーは、管理画面の「カレンダー」タブで選ぶと使える
 - ローカルのデータベースを空にするときは `.wrangler/state` を消して、`npm run db:migrate:local` からやり直す
@@ -40,7 +40,7 @@ npm run typecheck   # Worker・画面・テストの型チェック
 
    ```sh
    CALENDAR_SOURCE=google
-   ADMIN_EMAIL=<管理画面に入る Google アカウント>
+   OPERATOR_EMAIL=<運営者の Google アカウント>
    GOOGLE_CLIENT_ID=<クライアント ID>
    GOOGLE_CLIENT_SECRET=<クライアント シークレット>
    ```
@@ -56,7 +56,7 @@ npx wrangler d1 create mado-calendar
 npm run db:migrate:remote
 
 npx wrangler secret put ENCRYPTION_KEY       # openssl rand -base64 32 の出力
-npx wrangler secret put ADMIN_EMAIL
+npx wrangler secret put OPERATOR_EMAIL      # 運営者の Google アカウント
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 
