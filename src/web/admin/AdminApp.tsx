@@ -1,30 +1,28 @@
 // 管理画面（要件 3章）。
 
+import { CalendarDays, type LucideIcon, Settings, Users } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import type { AdminMe } from '../../shared/api';
 import type { AdminApi } from '../api/clients';
 import { errorMessage, isUnauthorized } from '../ui/errors';
-import { CalendarsTab } from './CalendarsTab';
 import { EventsTab } from './EventsTab';
-import { LabelsTab } from './LabelsTab';
-import { OwnersTab } from './OwnersTab';
-import { SettingsTab } from './SettingsTab';
+import { SettingsTab } from './settings/SettingsTab';
 import { ViewersTab } from './ViewersTab';
 
-type Tab = 'viewers' | 'calendars' | 'labels' | 'events' | 'settings' | 'owners';
-const TABS: { id: Tab; label: string; operatorOnly?: boolean }[] = [
-  { id: 'viewers', label: '閲覧者' },
-  { id: 'events', label: '予定' },
-  { id: 'labels', label: 'ラベル' },
-  { id: 'calendars', label: 'カレンダー' },
-  { id: 'settings', label: '設定' },
-  { id: 'owners', label: 'オーナー', operatorOnly: true },
+// よく使う画面だけをタブにし、使う頻度の低い画面は「設定」の中にまとめる（要件 7.5）
+type Tab = 'viewers' | 'events' | 'settings';
+const TABS: { id: Tab; label: string; Icon: LucideIcon }[] = [
+  { id: 'viewers', label: '閲覧者', Icon: Users },
+  { id: 'events', label: '予定', Icon: CalendarDays },
+  { id: 'settings', label: '設定', Icon: Settings },
 ];
 
 export function AdminApp({ api, loginError }: { api: AdminApi; loginError: string | null }) {
   const [me, setMe] = useState<AdminMe | 'unauthorized' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('viewers');
+  // タブを押すたびに中身を作り直す。今いるタブを押し直すと、そのタブの最初の画面（一覧など）に戻る
+  const [visit, setVisit] = useState(0);
 
   const loadMe = useCallback(() => {
     api
@@ -62,9 +60,6 @@ export function AdminApp({ api, loginError }: { api: AdminApi; loginError: strin
       <header className="admin-header">
         <strong>窓カレンダー 管理</strong>
         <span className="muted small">{me.displayName || me.email}</span>
-        <button type="button" onClick={() => void logout()}>
-          ログアウト
-        </button>
       </header>
       {me.mode === 'fake' && (
         <div className="banner banner-warn">
@@ -76,21 +71,30 @@ export function AdminApp({ api, loginError }: { api: AdminApi; loginError: strin
           Google カレンダーと連携していません。いったんログアウトし、ログインし直すときにカレンダーへのアクセスを許可してください。
         </div>
       )}
-      <nav className="tabs">
-        {TABS.filter((t) => !t.operatorOnly || me.isOperator).map((t) => (
-          <button type="button" key={t.id} aria-pressed={tab === t.id} onClick={() => setTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </nav>
-      <main className="admin-main">
-        {tab === 'viewers' && <ViewersTab api={api} />}
-        {tab === 'events' && <EventsTab api={api} />}
-        {tab === 'labels' && <LabelsTab api={api} />}
-        {tab === 'calendars' && <CalendarsTab api={api} />}
-        {tab === 'settings' && <SettingsTab api={api} me={me} onChanged={loadMe} />}
-        {tab === 'owners' && me.isOperator && <OwnersTab api={api} />}
-      </main>
+      <div className="admin-body">
+        {/* 狭い画面では画面下のタブバー、広い画面では左のサイドバーになる（置き方は CSS だけで切り替える） */}
+        <nav className="admin-nav" aria-label="管理画面のメニュー">
+          {TABS.map(({ id, label, Icon }) => (
+            <button
+              type="button"
+              key={id}
+              aria-current={tab === id ? 'page' : undefined}
+              onClick={() => {
+                setTab(id);
+                setVisit((n) => n + 1);
+              }}
+            >
+              <Icon size={22} aria-hidden="true" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+        <main className="admin-main" key={visit}>
+          {tab === 'viewers' && <ViewersTab api={api} />}
+          {tab === 'events' && <EventsTab api={api} />}
+          {tab === 'settings' && <SettingsTab api={api} me={me} onChanged={loadMe} onLogout={() => void logout()} />}
+        </main>
+      </div>
     </div>
   );
 }

@@ -311,7 +311,7 @@ function RulesEditor({
     <div className="card">
       <h3>表示ルール（カレンダー × ラベル）</h3>
       <p className="muted small">
-        設定していない組み合わせは「非表示」です。カテゴリ名を入れると、この閲覧者にだけその名前で見せます（空欄なら「ラベル」タブの名前を使います）。
+        設定していない組み合わせは「非表示」です。カテゴリ名を入れると、この閲覧者にだけその名前で見せます（空欄なら「設定 → カテゴリ名」の名前を使います）。
       </p>
       {groupLabels(labels, calendars).map((g) => {
         const rows = [...g.labels, ...g.none];

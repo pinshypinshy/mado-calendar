@@ -1,11 +1,11 @@
-// 対象カレンダーの選択（要件 3.2）。
+// 設定 → カレンダー：対象カレンダーの選択とキャッシュ（要件 3.2）。
 
 import { useCallback, useState } from 'react';
-import type { AdminApi } from '../api/clients';
-import { errorMessage } from '../ui/errors';
-import { useLoad } from './useLoad';
+import type { AdminApi } from '../../api/clients';
+import { errorMessage } from '../../ui/errors';
+import { useLoad } from '../useLoad';
 
-export function CalendarsTab({ api }: { api: AdminApi }) {
+export function CalendarsPage({ api }: { api: AdminApi }) {
   const { data, error, setData, setError } = useLoad(useCallback(() => api.calendars(), [api]));
   const [message, setMessage] = useState<string | null>(null);
 

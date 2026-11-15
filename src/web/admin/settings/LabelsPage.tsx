@@ -1,13 +1,13 @@
-// カテゴリ名の上書き（要件 3.4）。
+// 設定 → カテゴリ名：全員共通のカテゴリ名の上書き（要件 3.4）。
 
 import { useCallback } from 'react';
-import type { AdminLabel } from '../../shared/api';
-import type { AdminApi } from '../api/clients';
-import { errorMessage } from '../ui/errors';
-import { groupLabels, labelTitle } from './labels';
-import { useLoad } from './useLoad';
+import type { AdminLabel } from '../../../shared/api';
+import type { AdminApi } from '../../api/clients';
+import { errorMessage } from '../../ui/errors';
+import { groupLabels, labelTitle } from '../labels';
+import { useLoad } from '../useLoad';
 
-export function LabelsTab({ api }: { api: AdminApi }) {
+export function LabelsPage({ api }: { api: AdminApi }) {
   const { data, error, setData, setError } = useLoad(
     useCallback(async () => ({ labels: await api.labels(), calendars: await api.calendars() }), [api]),
   );

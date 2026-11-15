@@ -1,13 +1,13 @@
-// 運営者によるオーナーの管理（要件 3.10）。運営者にだけ表示する。
+// 設定 → オーナー：運営者によるオーナーの管理（要件 3.10）。運営者にだけ表示する。
 // 見せるのはオーナーの一覧の項目だけで、ほかのオーナーの予定や閲覧者は扱わない。
 
 import { type FormEvent, useCallback, useState } from 'react';
-import type { AdminApi } from '../api/clients';
-import { errorMessage } from '../ui/errors';
-import { formatDateTime } from './format';
-import { useLoad } from './useLoad';
+import type { AdminApi } from '../../api/clients';
+import { errorMessage } from '../../ui/errors';
+import { formatDateTime } from '../format';
+import { useLoad } from '../useLoad';
 
-export function OwnersTab({ api }: { api: AdminApi }) {
+export function OwnersPage({ api }: { api: AdminApi }) {
   const { data, error, reload, setError } = useLoad(useCallback(() => api.owners(), [api]));
   const [email, setEmail] = useState('');
 

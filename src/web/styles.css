@@ -493,9 +493,11 @@ button.icon {
 /* ---- 管理画面 ---- */
 
 .admin {
+  --tabbar-height: 52px;
   max-width: 760px;
   margin: 0 auto;
-  padding-bottom: 48px;
+  /* 画面下のタブバーに中身が隠れないよう、その高さの分をあける */
+  padding-bottom: calc(var(--tabbar-height) + var(--safe-bottom) + 24px);
 }
 .admin-header {
   display: flex;
@@ -509,16 +511,75 @@ button.icon {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.tabs {
+/* 管理画面のメニュー（要件 7.5）。狭い画面では画面下のタブバー、広い画面では左のサイドバー */
+.admin-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
   display: flex;
-  gap: 4px;
-  padding: 8px 12px;
-  overflow-x: auto;
+  background: #fff;
+  border-top: 1px solid var(--line);
+  padding-bottom: var(--safe-bottom);
 }
-.tabs button[aria-pressed='true'] {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
+.admin-nav button {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: var(--tabbar-height);
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+}
+.admin-nav button[aria-current='page'] {
+  color: var(--accent);
+}
+@media (min-width: 768px) {
+  .admin {
+    max-width: calc(200px + 16px + 760px);
+    padding-bottom: 48px;
+  }
+  .admin-body {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .admin-nav {
+    position: sticky;
+    top: 0;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 0 12px 12px;
+    border-top: none;
+    background: transparent;
+  }
+  .admin-nav button {
+    flex: none;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 10px;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 8px;
+    color: var(--fg);
+    font-size: 15px;
+  }
+  .admin-nav button:hover {
+    background: #f3f4f6;
+  }
+  .admin-nav button[aria-current='page'] {
+    background: #e1f3fc;
+    color: var(--accent);
+  }
 }
 .admin-main {
   padding: 0 12px;
@@ -548,6 +609,33 @@ button.icon {
 .plain-list li {
   border-bottom: 1px solid var(--line);
   padding: 6px 0;
+}
+/* 設定の一覧（要件 7.5） */
+.settings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.settings-list li + li {
+  border-top: 1px solid var(--line);
+}
+.settings-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: 0;
+  padding: 10px 12px;
+  text-align: left;
+}
+.settings-item-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 .list-button {
   width: 100%;

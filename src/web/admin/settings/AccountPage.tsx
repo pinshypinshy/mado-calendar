@@ -1,11 +1,21 @@
-// オーナー自身の設定：表示名（要件 3.9）。
+// 設定 → アカウント：オーナーの表示名（要件 3.9）と、ログアウト（要件 3.1）。
 
 import { useState } from 'react';
-import type { AdminMe } from '../../shared/api';
-import type { AdminApi } from '../api/clients';
-import { errorMessage } from '../ui/errors';
+import type { AdminMe } from '../../../shared/api';
+import type { AdminApi } from '../../api/clients';
+import { errorMessage } from '../../ui/errors';
 
-export function SettingsTab({ api, me, onChanged }: { api: AdminApi; me: AdminMe; onChanged: () => void }) {
+export function AccountPage({
+  api,
+  me,
+  onChanged,
+  onLogout,
+}: {
+  api: AdminApi;
+  me: AdminMe;
+  onChanged: () => void;
+  onLogout: () => void;
+}) {
   const [name, setName] = useState(me.displayName);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +47,9 @@ export function SettingsTab({ api, me, onChanged }: { api: AdminApi; me: AdminMe
       {error && <p className="error">{error}</p>}
       <h2>アカウント</h2>
       <p className="muted small">{me.email} でログインしています。</p>
+      <button type="button" onClick={onLogout}>
+        ログアウト
+      </button>
     </section>
   );
 }
