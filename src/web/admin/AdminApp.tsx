@@ -39,7 +39,7 @@ export function AdminApp({ api, loginError }: { api: AdminApi; loginError: strin
   if (me === 'unauthorized') {
     return (
       <div className="center-box">
-        <h1>mado-cal 管理画面</h1>
+        <h1>窓カレンダー 管理画面</h1>
         {loginError && <p className="error">{loginError}</p>}
         <a className="button" href="/auth/login">
           Google でログイン
@@ -51,7 +51,7 @@ export function AdminApp({ api, loginError }: { api: AdminApi; loginError: strin
   return (
     <div className="admin">
       <header className="admin-header">
-        <strong>mado-cal 管理</strong>
+        <strong>窓カレンダー 管理</strong>
         <span className="muted small">{me.email}</span>
         <button type="button" onClick={() => void logout()}>
           ログアウト

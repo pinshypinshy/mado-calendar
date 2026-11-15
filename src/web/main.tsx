@@ -14,7 +14,7 @@ const path = window.location.pathname;
 const root = createRoot(document.getElementById('root')!);
 
 if (path === '/admin' || path.startsWith('/admin/')) {
-  document.title = 'mado-cal 管理画面';
+  document.title = '窓カレンダー 管理画面';
   root.render(
     <StrictMode>
       <AdminApp api={createAdminApi(http)} loginError={new URLSearchParams(window.location.search).get('login_error')} />

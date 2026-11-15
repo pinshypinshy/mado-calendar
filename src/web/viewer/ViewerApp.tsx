@@ -114,7 +114,7 @@ function JoinForm({ api, initialError, onJoined }: { api: ViewerApi; initialErro
 
   return (
     <form className="center-box join" onSubmit={submit}>
-      <h1>カレンダーに参加</h1>
+      <h1>窓カレンダーに参加</h1>
       <p className="muted">受け取った ID を入力してください。</p>
       <input
         value={code}

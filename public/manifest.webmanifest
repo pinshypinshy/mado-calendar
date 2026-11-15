@@ -1,6 +1,6 @@
 {
-  "name": "カレンダー",
-  "short_name": "カレンダー",
+  "name": "窓カレンダー",
+  "short_name": "窓カレンダー",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

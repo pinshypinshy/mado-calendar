@@ -1,4 +1,4 @@
-# mado-calendar
+# 窓カレンダー
 
 Google カレンダーを、閲覧者ごとに見せる範囲を変えて共有する Web アプリ。要件は [docs/requirements.md](docs/requirements.md)、設計は [docs/design.md](docs/design.md) を参照。
 
