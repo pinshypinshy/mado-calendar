@@ -122,6 +122,21 @@ export function eventsOnDate<T extends Pick<ViewerEvent, 'start' | 'end'>>(event
   return events.filter((e) => e.start < to && Math.max(e.end, e.start + 1) > from);
 }
 
+/** マスの予定欄の高さ（px）から、予定または「+N」を何行並べられるか。行の間には gap が入る */
+export function cellLineCapacity(height: number, lineHeight: number, gap: number): number {
+  return Math.max(0, Math.floor((height + gap) / (lineHeight + gap)));
+}
+
+/**
+ * マスに入る行数に合わせて、出す予定の件数と、「+N」の N を決める。
+ * 全部入るなら全部出す。入らないなら、最後の1行を「+N」に使う。
+ */
+export function fitCellEvents(total: number, capacity: number): { shown: number; hidden: number } {
+  if (total <= capacity) return { shown: total, hidden: 0 };
+  const shown = Math.max(0, capacity - 1);
+  return { shown, hidden: total - shown };
+}
+
 export interface TimedBlock<T> {
   event: T;
   /** 0:00 からの分 */

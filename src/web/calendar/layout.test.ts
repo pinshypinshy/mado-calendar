@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import {
   canShift,
+  cellLineCapacity,
   clampDate,
+  fitCellEvents,
   formatEventTime,
   fetchRange,
   initialScrollMinutes,
@@ -172,5 +174,20 @@ describe('formatEventTime', () => {
     expect(formatEventTime({ allDay: true, start: t('2026-11-24T00:00:00+09:00'), end: t('2026-11-27T00:00:00+09:00') })).toBe(
       '11月24日（火）〜11月26日（木） 終日',
     );
+  });
+});
+
+describe('月表示のマスに出す件数', () => {
+  test('予定欄の高さから、行と行の間の隙間を含めて何行入るかを求める', () => {
+    // 13px の行 4つと隙間 3つで 58px
+    expect(cellLineCapacity(58, 13, 2)).toBe(4);
+    expect(cellLineCapacity(57, 13, 2)).toBe(3);
+    expect(cellLineCapacity(0, 13, 2)).toBe(0);
+  });
+  test('全部入るなら全部出し、入らないなら最後の1行を「+N」にする', () => {
+    expect(fitCellEvents(5, 5)).toEqual({ shown: 5, hidden: 0 });
+    expect(fitCellEvents(6, 5)).toEqual({ shown: 4, hidden: 2 });
+    expect(fitCellEvents(0, 5)).toEqual({ shown: 0, hidden: 0 });
+    expect(fitCellEvents(3, 0)).toEqual({ shown: 0, hidden: 3 });
   });
 });
