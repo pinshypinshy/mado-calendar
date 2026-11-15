@@ -35,6 +35,8 @@ export function AdminApp({ api, loginError }: { api: AdminApi; loginError: strin
   useEffect(loadMe, [loadMe]);
 
   const logout = useCallback(async () => {
+    // 押し間違えでログアウトしないよう、必ず確認する（要件 3.1）
+    if (!confirm('ログアウトしますか？')) return;
     await api.logout();
     setMe('unauthorized');
   }, [api]);
