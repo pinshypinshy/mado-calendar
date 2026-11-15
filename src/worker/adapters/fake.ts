@@ -67,7 +67,7 @@ function templatesOn(date: DateStr): Template[] {
   }
   // 繰り返し予定：外出（日）
   if (wd === 0) {
-    t.push({ calendarId: main, series: 'date', id: 'date', title: '外出', start: '13:00', end: '18:00', eventLabelId: 'lbl-private', colorId: '4' });
+    t.push({ calendarId: main, series: 'outing', id: 'outing', title: '外出', start: '13:00', end: '18:00', eventLabelId: 'lbl-private', colorId: '4' });
   }
   // 日をまたぐ予定（金）→ 週表示では上部の帯に出る
   if (wd === 5) {

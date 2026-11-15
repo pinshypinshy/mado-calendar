@@ -49,7 +49,7 @@ async function createViewer(owner: TestClient, name: string): Promise<AdminViewe
 
 async function setup(owner: TestClient, calendars: string[], rules: [string, string, string][]) {
   await owner.request('/api/admin/calendars', { method: 'PUT', body: { calendarIds: calendars } });
-  const v = await createViewer(owner, '母');
+  const v = await createViewer(owner, '家族');
   for (const [calendarId, labelKey, level] of rules) {
     await owner.request(`/api/admin/viewers/${v.id}/rules`, { method: 'PUT', body: { calendarId, labelKey, level } });
   }
@@ -135,13 +135,13 @@ describe('オーナー間のデータの分離（要件 7.6）', () => {
 
     // A の閲覧者は何も変わっていない
     const after = await a.json<AdminViewerDetail>(`/api/admin/viewers/${va.id}`);
-    expect(after.body).toMatchObject({ displayName: '母', status: 'active', code: va.code });
+    expect(after.body).toMatchObject({ displayName: '家族', status: 'active', code: va.code });
     expect((await a.json<unknown[]>(`/api/admin/viewers/${va.id}/rules`)).body).toHaveLength(1);
   });
 
   test('コピー元にほかのオーナーの閲覧者を指定できない', async () => {
     const va = await setup(a, [FAKE_MAIN], [[FAKE_MAIN, 'label:lbl-shift', 'detail']]);
-    const vb = await createViewer(b, '父の友人');
+    const vb = await createViewer(b, '友人');
     const res = await b.request(`/api/admin/viewers/${vb.id}/copy-from`, {
       method: 'POST',
       body: { sourceViewerId: va.id },
@@ -183,7 +183,7 @@ describe('オーナー間のデータの分離（要件 7.6）', () => {
 
 describe('閲覧者が複数のオーナーに参加する（要件 4.1、4.6）', () => {
   test('1台の端末で2人のオーナーに参加し、オーナーごとに別の予定を見る', async () => {
-    await b.request('/api/admin/profile', { method: 'PUT', body: { displayName: '父' } });
+    await b.request('/api/admin/profile', { method: 'PUT', body: { displayName: '佐藤' } });
     await a.request('/api/admin/profile', { method: 'PUT', body: { displayName: '山田' } });
     const va = await setup(a, [FAKE_MAIN], [[FAKE_MAIN, 'label:lbl-shift', 'detail']]);
     const vb = await setup(b, [FAKE_CLASS], [[FAKE_CLASS, 'label:lbl-attend', 'busy']]);
@@ -195,7 +195,7 @@ describe('閲覧者が複数のオーナーに参加する（要件 4.1、4.6）
     expect(ms.body).toEqual({
       memberships: [
         { viewerId: va.id, ownerName: '山田' },
-        { viewerId: vb.id, ownerName: '父' },
+        { viewerId: vb.id, ownerName: '佐藤' },
       ],
       // 最後に参加したオーナーを選択中にする
       current: vb.id,

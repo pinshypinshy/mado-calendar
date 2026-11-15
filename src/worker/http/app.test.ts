@@ -306,7 +306,7 @@ describe('表示判定', () => {
 
   test('閲覧者ごとのカテゴリ名は、その閲覧者だけに効き、全員共通の上書きより優先する', async () => {
     const v = await setupStandard();
-    const parent = await createViewer('父');
+    const parent = await createViewer('友人');
     await setRule(parent.id, FAKE_MAIN, 'label:lbl-private', 'category');
     await admin.request('/api/admin/labels', {
       method: 'PUT',
@@ -370,7 +370,7 @@ describe('表示判定', () => {
 
   test('閲覧者ごとに見え方が違う', async () => {
     const v = await setupStandard();
-    const parent = await createViewer('父');
+    const parent = await createViewer('友人');
     await setRule(parent.id, FAKE_MAIN, 'label:lbl-shift', 'busy');
     const a = await joinAs(v.code);
     const b = await joinAs(parent.code);
@@ -450,13 +450,13 @@ describe('管理画面', () => {
       method: 'PATCH',
       body: { defaultWeekStart: 1, period: { enabled: true, pastMonths: 1, futureMonths: 3 } },
     });
-    const other = await createViewer('母');
+    const other = await createViewer('親戚');
     const copied = await admin.json<AdminViewerDetail>(`/api/admin/viewers/${other.id}/copy-from`, {
       method: 'POST',
       body: { sourceViewerId: v.id },
     });
     expect(copied.body).toMatchObject({
-      displayName: '母',
+      displayName: '親戚',
       defaultWeekStart: 1,
       period: { enabled: true, pastMonths: 1, futureMonths: 3 },
     });
