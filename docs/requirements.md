@@ -243,6 +243,7 @@ function resolveLevel(e, v):
 - リフレッシュトークンは、暗号化して D1 に保存する。
 - OAuth 同意画面は「本番（In production）」にする。テスト中のままだと、リフレッシュトークンが7日で失効する。
 - リフレッシュトークンは、同意画面を本番に切り替えたあとに取得する。テスト中に発行したトークンは7日で失効する。
+- 同意画面を本番にするには、ホームページとプライバシーポリシーの URL が必要（Google の要件）。ホームページは `https://mado-cal.yuki-hiraishi.com/`、プライバシーポリシーは `https://mado-cal.yuki-hiraishi.com/privacy.html`（`public/privacy.html`）とし、承認済みドメインに `yuki-hiraishi.com` を登録する。
 
 ### 7.5 スマホ対応
 
