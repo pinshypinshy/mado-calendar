@@ -174,23 +174,28 @@ export class FakeCalendarSource implements CalendarSource {
   }
 }
 
-/** Google にリダイレクトせず、そのままログインできる OAuth */
+/**
+ * Google にリダイレクトせず、そのままログインできる OAuth。
+ * loginHint（/auth/login?as=メールアドレス）で、どのアカウントとしてログインするかを選べる。省略すると運営者。
+ */
 export class FakeOAuthProvider implements OAuthProvider {
   readonly calendarScope = CALENDAR_SCOPE;
 
-  constructor(private readonly adminEmail: string) {}
+  constructor(private readonly defaultEmail: string) {}
 
-  authorizationUrl(p: { redirectUri: string; state: string }): string {
-    return `${p.redirectUri}?${new URLSearchParams({ code: 'fake-code', state: p.state }).toString()}`;
+  authorizationUrl(p: { redirectUri: string; state: string; loginHint: string | null }): string {
+    const code = `fake:${p.loginHint ?? this.defaultEmail}`;
+    return `${p.redirectUri}?${new URLSearchParams({ code, state: p.state }).toString()}`;
   }
 
-  async exchangeCode() {
+  async exchangeCode(p: { code: string }) {
+    const email = p.code.startsWith('fake:') ? p.code.slice('fake:'.length) : this.defaultEmail;
     return {
       accessToken: 'fake-access-token',
       expiresIn: 3600,
       refreshToken: 'fake-refresh-token',
       scope: `openid email ${CALENDAR_SCOPE}`,
-      email: this.adminEmail,
+      email,
       emailVerified: true,
     };
   }

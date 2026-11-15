@@ -12,10 +12,10 @@ import { NO_PERIOD_LIMIT, validatePeriod } from '../domain/period';
 import { formatViewerCode, generateViewerCode } from '../domain/viewerCode';
 import { AppError } from '../errors';
 import { base64url } from '../lib/encoding';
-import type { Clock, Random, Repositories, SecretBox, ViewerRecord } from '../ports';
+import type { Clock, OwnerRepositories, Random, SecretBox, ViewerRecord } from '../ports';
 
 export interface AdminViewerDeps {
-  repos: Pick<Repositories, 'viewers' | 'rules' | 'overrides' | 'viewerLabelNames' | 'viewerSessions'>;
+  repos: Pick<OwnerRepositories, 'viewers' | 'rules' | 'overrides' | 'viewerLabelNames'>;
   secretBox: SecretBox;
   random: Random;
   clock: Clock;
@@ -79,14 +79,14 @@ export class AdminViewerService {
   async disable(id: string): Promise<void> {
     await this.require(id);
     await this.d.repos.viewers.update(id, { status: 'disabled' });
-    await this.d.repos.viewerSessions.deleteForViewer(id);
+    await this.d.repos.viewers.deleteSessions(id);
   }
 
   /** 再発行：新しい ID を発行し、古い ID と参加済みの端末をすべて無効にする。無効化した閲覧者も再び有効になる */
   async regenerate(id: string): Promise<void> {
     await this.require(id);
     await this.d.repos.viewers.update(id, { ...(await this.newCode()), status: 'active' });
-    await this.d.repos.viewerSessions.deleteForViewer(id);
+    await this.d.repos.viewers.deleteSessions(id);
   }
 
   async delete(id: string): Promise<void> {

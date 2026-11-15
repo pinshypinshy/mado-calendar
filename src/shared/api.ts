@@ -58,6 +58,27 @@ export interface JoinRequest {
   code: string;
 }
 
+export interface JoinResponse {
+  /** 参加した閲覧者。これを選択中にする */
+  viewerId: string;
+}
+
+/** 端末が参加している閲覧者 ID 1つ分（要件 4.6）。オーナーのメールアドレスは含めない */
+export interface Membership {
+  viewerId: string;
+  ownerName: string;
+}
+
+export interface MembershipsResponse {
+  memberships: Membership[];
+  /** 表示するオーナーの閲覧者 ID（最後に選んだもの。表示できなければ最初に参加したもの） */
+  current: string;
+}
+
+export interface SelectMembershipRequest {
+  viewerId: string;
+}
+
 export interface ViewerSettingsRequest {
   weekStart: WeekStart;
 }
@@ -74,8 +95,28 @@ export interface PeriodLimit {
 
 export interface AdminMe {
   email: string;
+  displayName: string;
+  isOperator: boolean;
   calendarConnected: boolean;
   mode: 'google' | 'fake';
+}
+
+export interface UpdateProfileRequest {
+  displayName: string;
+}
+
+/** 運営者に見せるオーナーの情報（要件 3.10）。これ以外のオーナーのデータは運営者にも見せない */
+export interface OwnerSummary {
+  id: string;
+  email: string;
+  displayName: string;
+  createdAt: number;
+  lastLoginAt: number | null;
+  isOperator: boolean;
+}
+
+export interface AddOwnerRequest {
+  email: string;
 }
 
 export interface AdminViewerSummary {

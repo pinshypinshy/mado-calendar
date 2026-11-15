@@ -4,8 +4,8 @@
 # google：本物の Google カレンダーを使う（GOOGLE_CLIENT_ID と GOOGLE_CLIENT_SECRET が必要）
 CALENDAR_SOURCE=fake
 
-# 管理画面に入れるメールアドレス。fake のときは、この値でそのままログインできる
-ADMIN_EMAIL=owner@example.com
+# 運営者のメールアドレス。運営者だけがオーナーを追加・削除できる。fake のときは、この値でそのままログインできる
+OPERATOR_EMAIL=owner@example.com
 
 # 暗号鍵（32バイトを base64 で表した値）。作り方：openssl rand -base64 32
 ENCRYPTION_KEY=

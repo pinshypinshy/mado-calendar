@@ -11,7 +11,7 @@ import type {
   ViewerEvent,
   ViewerMe,
 } from '../../shared/api';
-import { FakeOAuthProvider, FAKE_CLASS, FAKE_MAIN } from '../adapters/fake';
+import { FAKE_CLASS, FAKE_MAIN } from '../adapters/fake';
 import { createTestContext, createTestDb, TestClient, type TestContext, type TestDb } from '../testing/harness';
 
 let testDb: TestDb;
@@ -28,7 +28,7 @@ beforeEach(async () => {
   await testDb.reset();
   ctx = await createTestContext(testDb.db);
   admin = new TestClient(ctx.app);
-  await admin.loginAsAdmin();
+  await admin.loginAs();
 });
 
 const WEEK = '/api/viewer/events?from=2026-11-15&to=2026-11-22';
@@ -60,7 +60,7 @@ async function setOverride(viewerId: string, calendarId: string, eventKey: strin
 
 async function joinAs(code: string): Promise<TestClient> {
   const client = new TestClient(ctx.app);
-  const res = await client.request('/api/viewer/join', { method: 'POST', body: { code } });
+  const res = await client.joinWith(code);
   expect(res.status).toBe(200);
   return client;
 }
@@ -83,7 +83,7 @@ function titles(events: ViewerEvent[]): string[] {
 describe('管理者のログイン', () => {
   test('許可したメールアドレスならログインでき、Cookie は HttpOnly・Secure・SameSite=Lax', async () => {
     const client = new TestClient(ctx.app);
-    const res = await client.loginAsAdmin();
+    const res = await client.loginAs();
     expect(res.status).toBe(302);
     expect(res.headers.get('Location')).toBe('/admin');
     const cookie = client.lastSetCookies.find((c) => c.startsWith('mado_a='));
@@ -94,11 +94,10 @@ describe('管理者のログイン', () => {
     expect(me.body).toMatchObject({ email: 'owner@example.com', calendarConnected: true });
   });
 
-  test('ほかのメールアドレスではログインできない', async () => {
-    const other = await createTestContext(testDb.db, { oauth: new FakeOAuthProvider('someone@example.com') });
-    const client = new TestClient(other.app);
-    const res = await client.loginAsAdmin();
-    expect(decodeURIComponent(res.headers.get('Location') ?? '')).toContain('このアカウントでは管理画面に入れません');
+  test('オーナーとして登録されていないアカウントではログインできない', async () => {
+    const client = new TestClient(ctx.app);
+    const res = await client.loginAs('someone@example.com');
+    expect(decodeURIComponent(res.headers.get('Location') ?? '')).toContain('オーナーとして登録されていません');
     expect((await client.request('/api/admin/me')).status).toBe(401);
   });
 

@@ -17,12 +17,12 @@ import { categoryNameOf } from '../domain/labels';
 import { buildPolicy, type OverrideRow, resolveLevel, type RuleRow } from '../domain/level';
 import { allowedDateBounds, boundsToWindow } from '../domain/period';
 import { AppError } from '../errors';
-import type { Clock, Repositories } from '../ports';
+import type { Clock, OwnerRepositories } from '../ports';
 import type { CalendarData } from './calendarData';
 
 export interface AdminCalendarDeps {
   repos: Pick<
-    Repositories,
+    OwnerRepositories,
     'viewers' | 'rules' | 'overrides' | 'calendarSelection' | 'labelNames' | 'viewerLabelNames' | 'cache'
   >;
   data: CalendarData;

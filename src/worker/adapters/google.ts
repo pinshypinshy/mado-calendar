@@ -140,11 +140,16 @@ export class GoogleOAuthProvider implements OAuthProvider {
   constructor(
     private readonly clientId: string,
     private readonly clientSecret: string,
-    private readonly loginHint: string | null,
     private readonly fetcher: Fetch = fetch,
   ) {}
 
-  authorizationUrl(p: { redirectUri: string; state: string; codeChallenge: string; forceConsent: boolean }): string {
+  authorizationUrl(p: {
+    redirectUri: string;
+    state: string;
+    codeChallenge: string;
+    forceConsent: boolean;
+    loginHint: string | null;
+  }): string {
     const params = new URLSearchParams({
       client_id: this.clientId,
       redirect_uri: p.redirectUri,
@@ -155,10 +160,10 @@ export class GoogleOAuthProvider implements OAuthProvider {
       code_challenge_method: 'S256',
       access_type: 'offline',
       include_granted_scopes: 'true',
-      // リフレッシュトークンをまだ持っていないときだけ同意画面を出し、確実に受け取る
+      // リフレッシュトークンを持っていないオーナーには同意画面を出し、確実に受け取る
       prompt: p.forceConsent ? 'consent select_account' : 'select_account',
     });
-    if (this.loginHint) params.set('login_hint', this.loginHint);
+    if (p.loginHint) params.set('login_hint', p.loginHint);
     return `${AUTH_ENDPOINT}?${params.toString()}`;
   }
 

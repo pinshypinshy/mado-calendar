@@ -101,17 +101,19 @@ describe('GoogleOAuthProvider', () => {
 
   test('認可 URL：読み取り専用のスコープ、PKCE、オフラインアクセス', () => {
     const url = new URL(
-      new GoogleOAuthProvider('cid', 'sec', 'owner@example.com').authorizationUrl({
+      new GoogleOAuthProvider('cid', 'sec').authorizationUrl({
         redirectUri: 'https://x/auth/callback',
         state: 's',
         codeChallenge: 'cc',
         forceConsent: true,
+        loginHint: 'owner@example.com',
       }),
     );
     expect(url.searchParams.get('scope')).toBe('openid email https://www.googleapis.com/auth/calendar.readonly');
     expect(url.searchParams.get('code_challenge_method')).toBe('S256');
     expect(url.searchParams.get('access_type')).toBe('offline');
     expect(url.searchParams.get('prompt')).toContain('consent');
+    expect(url.searchParams.get('login_hint')).toBe('owner@example.com');
   });
 
   test('コードの交換：ID トークンからメールアドレスを取り出す', async () => {
@@ -122,7 +124,7 @@ describe('GoogleOAuthProvider', () => {
       scope: 's',
       id_token: idToken({ iss: 'https://accounts.google.com', aud: 'cid', email: 'a@b.c', email_verified: true }),
     }));
-    const r = await new GoogleOAuthProvider('cid', 'sec', null, fn).exchangeCode({ code: 'c', codeVerifier: 'v', redirectUri: 'r' });
+    const r = await new GoogleOAuthProvider('cid', 'sec', fn).exchangeCode({ code: 'c', codeVerifier: 'v', redirectUri: 'r' });
     expect(r).toEqual({ accessToken: 'at', expiresIn: 3600, refreshToken: 'rt', scope: 's', email: 'a@b.c', emailVerified: true });
   });
 
@@ -133,12 +135,12 @@ describe('GoogleOAuthProvider', () => {
       id_token: idToken({ iss: 'https://accounts.google.com', aud: 'other', email: 'a@b.c', email_verified: true }),
     }));
     await expect(
-      new GoogleOAuthProvider('cid', 'sec', null, fn).exchangeCode({ code: 'c', codeVerifier: 'v', redirectUri: 'r' }),
+      new GoogleOAuthProvider('cid', 'sec', fn).exchangeCode({ code: 'c', codeVerifier: 'v', redirectUri: 'r' }),
     ).rejects.toBeInstanceOf(AppError);
   });
 
   test('リフレッシュトークンが失効していたら OAuthRevokedError', async () => {
     const { fn } = fakeFetch(() => ({ error: 'invalid_grant' }), 400);
-    await expect(new GoogleOAuthProvider('cid', 'sec', null, fn).refresh('rt')).rejects.toBeInstanceOf(OAuthRevokedError);
+    await expect(new GoogleOAuthProvider('cid', 'sec', fn).refresh('rt')).rejects.toBeInstanceOf(OAuthRevokedError);
   });
 });

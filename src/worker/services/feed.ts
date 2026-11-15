@@ -7,7 +7,7 @@ import { buildPolicy, resolveLevel } from '../domain/level';
 import { allowedDateBounds, boundsToWindow, clampRange } from '../domain/period';
 import { presentForViewer } from '../domain/present';
 import { AppError } from '../errors';
-import type { Clock, Repositories, ViewerRecord } from '../ports';
+import type { Clock, OwnerRepositories, ViewerRecord } from '../ports';
 import type { CalendarData } from './calendarData';
 
 /**
@@ -19,7 +19,7 @@ export const FORCE_REFRESH_INTERVAL_MS = 5 * 1000;
 export const MAX_RANGE_DAYS = 62;
 
 export interface FeedDeps {
-  repos: Pick<Repositories, 'viewers' | 'rules' | 'overrides' | 'viewerLabelNames'>;
+  repos: Pick<OwnerRepositories, 'viewers' | 'rules' | 'overrides' | 'viewerLabelNames'>;
   data: CalendarData;
   clock: Clock;
 }

@@ -13,9 +13,10 @@ import { base64url } from '../lib/encoding';
 import { createSecretBox } from '../adapters/runtime';
 import { assembleServices, type Services } from '../container';
 import { createApp } from '../http/app';
-import type { CalendarSource, Clock, OAuthProvider, Random, Repositories } from '../ports';
+import type { CalendarSource, Clock, OAuthProvider, Random, RepositoryFactory } from '../ports';
 
-export const ADMIN_EMAIL = 'owner@example.com';
+/** 運営者（最初のオーナー） */
+export const OPERATOR_EMAIL = 'owner@example.com';
 /** テスト専用の鍵（32バイトの0） */
 export const TEST_KEY = btoa(String.fromCharCode(...new Uint8Array(32)));
 
@@ -83,7 +84,7 @@ function splitSql(sql: string): string[] {
 export interface TestContext {
   services: Services;
   app: ReturnType<typeof createApp>;
-  repos: Repositories;
+  repos: RepositoryFactory;
   clock: ManualClock;
   source: FakeCalendarSource;
 }
@@ -102,8 +103,8 @@ export async function createTestContext(
     clock,
     random,
     secretBox: await createSecretBox(TEST_KEY, random),
-    oauth: opts.oauth ?? new FakeOAuthProvider(ADMIN_EMAIL),
-    adminEmail: ADMIN_EMAIL,
+    oauth: opts.oauth ?? new FakeOAuthProvider(OPERATOR_EMAIL),
+    operatorEmail: OPERATOR_EMAIL,
     createCalendarSource: () => opts.source ?? source,
   });
   return { services, app: createApp(services), repos, clock, source };
@@ -113,6 +114,11 @@ export async function createTestContext(
 export class TestClient {
   readonly cookies = new Map<string, string>();
   lastSetCookies: string[] = [];
+  /**
+   * 閲覧者の API（/api/viewer/me・events・settings）に付ける ?v=。
+   * joinWith で参加すると、その閲覧者になる。パスに v= を書いた場合はそちらを使う
+   */
+  viewerId: string | null = null;
 
   constructor(
     private readonly app: ReturnType<typeof createApp>,
@@ -123,6 +129,9 @@ export class TestClient {
     const headers: Record<string, string> = { ...init.headers };
     if (this.cookies.size > 0) headers['Cookie'] = [...this.cookies].map(([k, v]) => `${k}=${v}`).join('; ');
     const method = init.method ?? 'GET';
+    if (this.viewerId && /^\/api\/viewer\/(me|events|settings)/.test(path) && !/[?&]v=/.test(path)) {
+      path = `${path}${path.includes('?') ? '&' : '?'}v=${encodeURIComponent(this.viewerId)}`;
+    }
     if (method !== 'GET' && !('Origin' in headers)) headers['Origin'] = this.origin;
     if (init.body !== undefined) headers['Content-Type'] = 'application/json';
     const res = await this.app.request(`${this.origin}${path}`, {
@@ -147,9 +156,16 @@ export class TestClient {
     return { status: res.status, body: (await res.json()) as T, res };
   }
 
-  /** フェイクの OAuth でログインする */
-  async loginAsAdmin(): Promise<Response> {
-    const start = await this.request('/auth/login');
+  /** 閲覧者 ID で参加し、その閲覧者を選択中にする */
+  async joinWith(code: string): Promise<Response> {
+    const res = await this.request('/api/viewer/join', { method: 'POST', body: { code } });
+    if (res.ok) this.viewerId = ((await res.clone().json()) as { viewerId: string }).viewerId;
+    return res;
+  }
+
+  /** フェイクの OAuth でログインする。email を省略すると運営者 */
+  async loginAs(email?: string): Promise<Response> {
+    const start = await this.request(email ? `/auth/login?as=${encodeURIComponent(email)}` : '/auth/login');
     const location = start.headers.get('Location') ?? '';
     const url = new URL(location);
     return this.request(`${url.pathname}${url.search}`);
