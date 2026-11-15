@@ -51,8 +51,9 @@ npm run typecheck   # Worker・画面・テストの型チェック
 
 ```sh
 npx wrangler login
-npx wrangler d1 create mado-calendar
-# 表示された database_id を wrangler.jsonc の d1_databases[0].database_id に書く
+# 初回だけ：データベースを作り、表示された database_id を wrangler.jsonc の d1_databases[0].database_id に書く
+# （作成済み。作り直すときだけ実行する）
+# npx wrangler d1 create mado-calendar
 npm run db:migrate:remote
 
 npx wrangler secret put ENCRYPTION_KEY       # openssl rand -base64 32 の出力

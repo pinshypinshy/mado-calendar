@@ -11,8 +11,7 @@
     {
       "binding": "DB",
       "database_name": "mado-calendar",
-      // `npx wrangler d1 create mado-calendar` で作成した ID に置き換える（ローカル開発ではこのままでも動く）
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "14c617a6-b253-4efe-a30b-18f23647f273",
       "migrations_dir": "migrations"
     }
   ],
