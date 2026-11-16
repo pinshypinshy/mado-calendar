@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { AdminMe } from '../../../shared/api';
 import type { AdminApi } from '../../api/clients';
 import { errorMessage } from '../../ui/errors';
+import { PrivacyLink } from '../../ui/PrivacyLink';
 
 export function AccountPage({
   api,
@@ -50,6 +51,9 @@ export function AccountPage({
       <button type="button" onClick={onLogout}>
         ログアウト
       </button>
+      <p>
+        <PrivacyLink />
+      </p>
     </section>
   );
 }

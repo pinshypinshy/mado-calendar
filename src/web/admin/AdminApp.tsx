@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { AdminMe } from '../../shared/api';
 import type { AdminApi } from '../api/clients';
 import { errorMessage, isUnauthorized } from '../ui/errors';
+import { PrivacyLink } from '../ui/PrivacyLink';
 import { EventsTab } from './EventsTab';
 import { SettingsTab } from './settings/SettingsTab';
 import { ViewersTab } from './ViewersTab';
@@ -51,6 +52,7 @@ export function AdminApp({ api, loginError }: { api: AdminApi; loginError: strin
         </a>
         <p className="muted small">運営者が追加した Google アカウントだけがログインできます。</p>
         <LoginAs />
+        <PrivacyLink />
       </div>
     );
   }

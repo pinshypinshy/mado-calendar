@@ -7,6 +7,7 @@ import type { ViewerApi } from '../api/clients';
 import { CalendarScreen } from '../calendar/CalendarScreen';
 import { errorMessage, isUnauthorized } from '../ui/errors';
 import { Modal } from '../ui/Modal';
+import { PrivacyLink } from '../ui/PrivacyLink';
 
 export interface ViewerAppProps {
   api: ViewerApi;
@@ -293,6 +294,7 @@ function JoinForm({
       <button type="submit" disabled={busy || code.trim() === ''}>
         {busy ? '確認中…' : '参加する'}
       </button>
+      {!compact && <PrivacyLink />}
     </form>
   );
 }
