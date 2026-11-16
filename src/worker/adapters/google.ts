@@ -48,7 +48,7 @@ export class GoogleCalendarSource implements CalendarSource {
 
   async listLabels(calendarId: string): Promise<SourceLabel[]> {
     // labelProperties は calendars.get の Calendars リソースに含まれる。
-    // 読み取りに eventLabelVersion=1 が必要かは公式に明記がない（未検証：要件 10章 #1）
+    // 読み取りに eventLabelVersion=1 が必要かは公式に明記がないが、付けなくても取れることを確かめた（要件 10章 #1）
     const res = await this.get<GoogleCalendar>(`/calendars/${encodeURIComponent(calendarId)}`, {
       fields: 'labelProperties',
     });
