@@ -1,6 +1,11 @@
+<img src="public/icon-512.png" width="100" alt="閲覧画面のアイコン"> <img src="public/admin-icon-512.png" width="100" alt="管理画面のアイコン">
+
 # 窓カレンダー
 
 Google カレンダーを、閲覧者ごとに見せる範囲を変えて共有する Web アプリ。要件は [docs/requirements.md](docs/requirements.md)、設計は [docs/design.md](docs/design.md) を参照。
+
+本番環境: https://mado-cal.yuki-hiraishi.com  
+管理画面: https://mado-cal.yuki-hiraishi.com/admin
 
 ## 必要なもの
 
